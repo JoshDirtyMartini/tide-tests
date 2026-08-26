@@ -1,0 +1,11 @@
+@import 'lenis/dist/lenis.css';
+
+html,
+body {
+  margin: 0;
+  background: #fcf4ee;
+}
+
+html {
+  scroll-behavior: auto;
+}
