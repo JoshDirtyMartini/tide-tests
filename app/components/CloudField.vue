@@ -15,7 +15,7 @@ const HOVER_OPACITY = 0.5
 const SCROLL_TRAVEL = 20
 const CULL_Y = 7
 
-// Drop a .glb in /public, then add { src, baseRotation?, instances[] } here.
+
 const SCENE_MODELS = [
   {
     src: '/clouds.glb',
