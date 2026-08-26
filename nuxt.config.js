@@ -4,4 +4,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxtjs/tailwindcss', '@tresjs/nuxt', 'lenis/nuxt'],
   css: ['~/assets/css/main.css'],
+  tres: {
+    devtools: process.env.NODE_ENV === 'development',
+  },
 })
