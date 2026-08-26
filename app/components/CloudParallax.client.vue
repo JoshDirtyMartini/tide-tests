@@ -1,6 +1,13 @@
 <script setup>
 import { NoToneMapping } from 'three'
 
+defineProps({
+  archway: {
+    type: Boolean,
+    default: false,
+  }
+})
+
 const enabled = ref(false)
 const dpr = ref([1, 1.5])
 
@@ -33,7 +40,8 @@ onMounted(() => {
     class="cloud-canvas"
   >
     <TresPerspectiveCamera :position="[0, 0, 15]" :fov="20" />
-    <CloudField />
+    <CloudField v-if="!archway" />
+    <CloudFieldArchway v-else />
   </TresCanvas>
 </template>
 

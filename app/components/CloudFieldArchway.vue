@@ -19,19 +19,40 @@ const HOVER_OPACITY = 0.5
 const SCROLL_TRAVEL = 20
 const CULL_Y = 7
 
+
+const ZOOM_START = 0.5
+
+const TRAVEL_END = 0.8
+const CAMERA_Z = 12
+const ZOOM_AMOUNT = 30
+
+function clamp01(v) {
+  return Math.min(Math.max(v, 0), 1)
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3)
+}
+
+function smoothstep01(t) {
+  const x = clamp01(t)
+  return x * x * (3 - 2 * x)
+}
+
 const CLOUD_CONFIGS = [
-  { x: -3.0, y: 2.0, z: -4.2, scale: 1.1, scrollSpeed: 0.42, mouseAmp: 0.05, rotY: 0, rotX: -0.001, rotZ: -0.1 },
-  { x: 2.4, y: -4.6, z: -2.0, scale: 0.85, scrollSpeed: 1.05, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: 0.1 },
-  { x: -3, y: -11, z: -2.0, scale: 1.2, scrollSpeed: 1.05, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: -0.1 },
+  { x: -3.0, y: 1, z: -4.2, scale: 1.1, scrollSpeed: 0.42, mouseAmp: 0.05, rotY: 0, rotX: -0.001, rotZ: -0.1 },
+  { x: 2.4, y: -4.6, z: -2.0, scale: 0.85, scrollSpeed: 0.6, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: 0.1 },
+  { x: -1, y: -12, z: 6, scale: 0.3, scrollSpeed: 0.8, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: -0.1 },
+  { x: 1.4, y: -12.5, z: 2, scale: 0.3, scrollSpeed: 0.8, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: -0.1 },
 ]
 
 const CHERUB_CONFIGS = [
   {
     x: 1.8,
     y: -6.2,
-    z: -2.4,
-    scale: 0.25,
-    scrollSpeed: 0.8,
+    z: 2,
+    scale: 0.1,
+    scrollSpeed: 0.5,
     mouseAmp: 0.05,
     rotY: 0,
     rotX: -0.08,
@@ -45,9 +66,9 @@ const CHERUB_CONFIGS = [
 const ARCHWAY_CONFIGS = [
   {
     x: 0,
-    y: -15,
+    y: -15.6,
     z: -3.0,
-    scale: 0.5,
+    scale: 0.28,
     scrollSpeed: 0.95,
     mouseAmp: 0.04,
     rotY: 0,
@@ -176,16 +197,6 @@ varying float vHover;
 varying float vRelief;
 
 ${CLOUD_SHARED_FUNCS}
-
-float appearMask(vec2 screenUv) {
-  float n = fbm(vCloudWorldPos.xz * 0.36 + vCloudWorldPos.y * 0.18);
-
-  float edgeDist = min(screenUv.y, 1.0 - screenUv.y);
-  float warped = edgeDist + (n - 0.5) * 0.16;
-  float viewport = smoothstep(0.15, 0.4, warped);
-
-  return saturate(smoothstep(0.2, 0.9, n * 0.82 + viewport * 0.88));
-}
 `
 
 const CLOUD_MAP_FRAGMENT = `
@@ -197,7 +208,6 @@ const CLOUD_MAP_FRAGMENT = `
     : 0.0;
   // Prefer fragment influence (higher res) but keep vertex hover as a floor
   influence = max(influence, vHover);
-  float appear = appearMask(screenUv);
 
   vec4 sampledDiffuseColor = texture2D(map, vMapUv);
   diffuseColor *= sampledDiffuseColor;
@@ -258,7 +268,7 @@ const CLOUD_MAP_FRAGMENT = `
     diffuseColor.rgb = mix(diffuseColor.rgb, metal, saturate(influence * 1.1));
   }
 
-  diffuseColor.a *= mix(uBaseOpacity, uHoverOpacity, influence) * appear;
+  diffuseColor.a *= mix(uBaseOpacity, uHoverOpacity, influence);
   if (diffuseColor.a < 0.01) discard;
 #endif
 `
@@ -287,7 +297,7 @@ let lastWaterX = 10
 let lastWaterY = 10
 let disposed = false
 
-const { invalidate } = useTres()
+const { invalidate, camera } = useTres()
 const { onBeforeRender } = useLoop()
 
 function requestFrame(frames = 1) {
@@ -493,10 +503,23 @@ onBeforeRender(({ delta, renderer }) => {
   waterMouse.value.set(waterFollow.x, waterFollow.y)
   waterResolution.value.set(renderer.domElement.width, renderer.domElement.height)
 
+
+  // Overlap: Y eases to a stop at TRAVEL_END while zoom already ramps from ZOOM_START.
+  const travelT = clamp01(smooth.scroll / Math.max(TRAVEL_END, 1e-4))
+  const travelScroll = easeOutCubic(travelT) * TRAVEL_END
+  const zoom = smoothstep01(
+    (smooth.scroll - ZOOM_START) / Math.max(1 - ZOOM_START, 1e-4),
+  )
+
+  const cam = camera.value
+  if (cam) {
+    cam.position.z = CAMERA_Z - zoom * ZOOM_AMOUNT
+  }
+
   for (const { object, config, baseRotation } of instances.value) {
     const y =
       config.y +
-      smooth.scroll * SCROLL_TRAVEL * config.scrollSpeed +
+      travelScroll * SCROLL_TRAVEL * config.scrollSpeed +
       smooth.y * config.mouseAmp * 0.55
 
     object.visible = Math.abs(y) < CULL_Y + 3
