@@ -17,18 +17,19 @@
         </div>
         
       </section>
-
-      <section class="panel">
-
-
-      </section>
-
       <section class="panel">
   <div class="w-screen h-screen flex items-center pl-[60vw]">
           <div class="w-[30vw] h-[60svh] bg-white"></div>
         </div>
       
       </section>
+
+      <section class="panel">
+
+
+      </section>
+
+     
 
       <section class="panel"></section>
       <section class="panel"></section>

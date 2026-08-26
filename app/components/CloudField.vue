@@ -1,5 +1,5 @@
 <script setup>
-import { useLoader, useLoop, useTres } from '@tresjs/core'
+import { useLoop, useTres } from '@tresjs/core'
 import {
   DoubleSide,
   MathUtils,
@@ -10,52 +10,78 @@ import {
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
-const CLOUD_BASE_ROTATION_DEG = { x: 90, y: 0, z: 0 }
-const CHERUB_BASE_ROTATION_DEG = { x: 0, y: 0, z: 0 }
-const ARCHWAY_BASE_ROTATION_DEG = { x: 0, y: 0, z: 0 }
-
 const CLOUD_OPACITY = 0.2
 const HOVER_OPACITY = 0.5
 const SCROLL_TRAVEL = 20
 const CULL_Y = 7
 
-const CLOUD_CONFIGS = [
-  { x: -3.0, y: 2.0, z: -4.2, scale: 1.1, scrollSpeed: 0.42, mouseAmp: 0.05, rotY: 0, rotX: -0.001, rotZ: -0.1 },
-  { x: 2.4, y: -4.6, z: -2.0, scale: 0.85, scrollSpeed: 1.05, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: 0.1 },
-  { x: -3, y: -11, z: -2.0, scale: 1.2, scrollSpeed: 1.05, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: -0.1 },
-]
-
-const CHERUB_CONFIGS = [
+// Drop a .glb in /public, then add { src, baseRotation?, instances[] } here.
+const SCENE_MODELS = [
   {
-    x: 1.8,
-    y: -6.2,
-    z: -2.4,
-    scale: 0.25,
-    scrollSpeed: 0.8,
-    mouseAmp: 0.05,
-    rotY: 0,
-    rotX: -0.08,
-    rotZ: 0.06,
-    opacity: 0.6,
-    hoverOpacity: 1,
-    depthWrite: true,
+    src: '/clouds.glb',
+    baseRotation: { x: 90, y: 0, z: 0 },
+    instances: [
+      { x: -3.0, y: 2.0, z: -4.2, scale: 1.1, scrollSpeed: 0.42, mouseAmp: 0.05, rotY: 0, rotX: -0.001, rotZ: -0.1 },
+      { x: 2.4, y: -4.6, z: -2.0, scale: 0.85, scrollSpeed: 1.05, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: 0.1 },
+      { x: -3, y: -11, z: -2.0, scale: 1.2, scrollSpeed: 1.05, mouseAmp: 0.05, rotY: 0, rotX: -0.1, rotZ: -0.1 },
+    ],
   },
-]
-
-const ARCHWAY_CONFIGS = [
   {
-    x: 0,
-    y: -15,
-    z: -3.0,
-    scale: 0.5,
-    scrollSpeed: 0.95,
-    mouseAmp: 0.04,
-    rotY: 0,
-    rotX: -0.04,
-    rotZ: 0,
-    opacity: 0.2,
-    hoverOpacity: 0.3,
-    depthWrite: false,
+    src: '/cherub.glb',
+    instances: [
+      {
+        x: 1.8,
+        y: -6.2,
+        z: -2.4,
+        scale: 0.25,
+        scrollSpeed: 0.8,
+        mouseAmp: 0.05,
+        rotY: 0,
+        rotX: -0.08,
+        rotZ: 0.06,
+        opacity: 0.6,
+        hoverOpacity: 1,
+        depthWrite: true,
+      },
+    ],
+  },
+  {
+    src: '/archway.glb',
+    instances: [
+      {
+        x: 0,
+        y: -15,
+        z: -3.0,
+        scale: 0.5,
+        scrollSpeed: 0.95,
+        mouseAmp: 0.04,
+        rotY: 0,
+        rotX: -0.04,
+        rotZ: 0,
+        opacity: 0.2,
+        hoverOpacity: 0.3,
+        depthWrite: false,
+      },
+    ],
+  },
+  {
+    src: '/bird1-optimized.glb',
+    instances: [
+      {
+        x: -1.4,
+        y: -3.2,
+        z: -1.8,
+        scale: 0.35,
+        scrollSpeed: 0.75,
+        mouseAmp: 0.06,
+        rotY: 0.4,
+        rotX: -0.05,
+        rotZ: 0.02,
+        opacity: 0.7,
+        hoverOpacity: 1,
+        depthWrite: true,
+      },
+    ],
   },
 ]
 
@@ -266,17 +292,10 @@ const CLOUD_MAP_FRAGMENT = `
 const dracoLoader = new DRACOLoader()
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/')
 
-const loaderOptions = {
-  asyncOptions: { shallow: true },
-  extensions: (loader) => {
-    loader.setDRACOLoader(dracoLoader)
-  },
-}
+const gltfLoader = new GLTFLoader()
+gltfLoader.setDRACOLoader(dracoLoader)
 
-const { state: cloudsState } = useLoader(GLTFLoader, '/clouds.glb', loaderOptions)
-const { state: cherubState } = useLoader(GLTFLoader, '/cherub.glb', loaderOptions)
-const { state: archwayState } = useLoader(GLTFLoader, '/archway.glb', loaderOptions)
-
+const gltfsBySrc = shallowRef({})
 const instances = shallowRef([])
 const pointer = { x: 10, y: 10 }
 const smooth = { x: 10, y: 10, scroll: 0 }
@@ -293,6 +312,20 @@ const { onBeforeRender } = useLoop()
 function requestFrame(frames = 1) {
   if (disposed || (typeof document !== 'undefined' && document.hidden)) return
   invalidate(frames)
+}
+
+async function loadSceneModels() {
+  const srcs = [...new Set(SCENE_MODELS.map((model) => model.src))]
+  try {
+    const entries = await Promise.all(
+      srcs.map(async (src) => [src, await gltfLoader.loadAsync(src)]),
+    )
+    if (disposed) return
+    gltfsBySrc.value = Object.fromEntries(entries)
+    rebuildInstances()
+  } catch (error) {
+    console.error('[CloudField] failed to load scene models', error)
+  }
 }
 
 function applyCloudMaterial(sourceMat, opacity, hoverOpacity, depthWrite) {
@@ -355,19 +388,24 @@ function prepareMaterials(root, opacity, hoverOpacity, depthWrite) {
   })
 }
 
-function spawnInstances(gltf, configs, baseRotation) {
-  if (!gltf?.scene) return []
+function spawnInstances(gltf, configs, baseRotation = { x: 0, y: 0, z: 0 }) {
+  if (!gltf?.scene || !configs?.length) return []
 
   const scene = toRaw(gltf.scene)
+  const rotation = {
+    x: baseRotation.x ?? 0,
+    y: baseRotation.y ?? 0,
+    z: baseRotation.z ?? 0,
+  }
 
   return configs.map((config) => {
     const object = scene.clone(true)
     object.position.set(config.x, config.y, config.z)
     object.scale.setScalar(config.scale)
     object.rotation.set(
-      MathUtils.degToRad(baseRotation.x) + config.rotX,
-      MathUtils.degToRad(baseRotation.y) + config.rotY,
-      MathUtils.degToRad(baseRotation.z) + config.rotZ,
+      MathUtils.degToRad(rotation.x) + (config.rotX ?? 0),
+      MathUtils.degToRad(rotation.y) + (config.rotY ?? 0),
+      MathUtils.degToRad(rotation.z) + (config.rotZ ?? 0),
     )
     prepareMaterials(
       object,
@@ -375,7 +413,7 @@ function spawnInstances(gltf, configs, baseRotation) {
       config.hoverOpacity ?? HOVER_OPACITY,
       config.depthWrite ?? false,
     )
-    return { object, config, baseRotation }
+    return { object, config, baseRotation: rotation }
   })
 }
 
@@ -400,18 +438,18 @@ function clearInstances() {
 
 function rebuildInstances() {
   if (disposed) return
-  if (!cloudsState.value || !cherubState.value || !archwayState.value) return
+
+  const loaded = gltfsBySrc.value
+  if (!SCENE_MODELS.every((model) => loaded[model.src])) return
 
   clearInstances()
-  instances.value = [
-    ...spawnInstances(cloudsState.value, CLOUD_CONFIGS, CLOUD_BASE_ROTATION_DEG),
-    ...spawnInstances(cherubState.value, CHERUB_CONFIGS, CHERUB_BASE_ROTATION_DEG),
-    ...spawnInstances(archwayState.value, ARCHWAY_CONFIGS, ARCHWAY_BASE_ROTATION_DEG),
-  ]
+  instances.value = SCENE_MODELS.flatMap((model) =>
+    spawnInstances(loaded[model.src], model.instances, model.baseRotation),
+  )
   nextTick(() => requestFrame(4))
 }
 
-watch([cloudsState, cherubState, archwayState], rebuildInstances, { immediate: true })
+loadSceneModels()
 
 let removePointer
 let removeVisibility
@@ -463,6 +501,12 @@ onBeforeUnmount(() => {
   removeVisibility?.()
   removeScroll?.()
   clearInstances()
+  for (const gltf of Object.values(gltfsBySrc.value)) {
+    gltf?.scene?.traverse((child) => {
+      child.geometry?.dispose?.()
+    })
+  }
+  gltfsBySrc.value = {}
   dracoLoader.dispose()
 })
 
@@ -506,9 +550,9 @@ onBeforeRender(({ delta, renderer }) => {
     object.position.y = y
     object.position.z = config.z
 
-    object.rotation.x = MathUtils.degToRad(baseRotation.x) + config.rotX
-    object.rotation.y = MathUtils.degToRad(baseRotation.y) + config.rotY
-    object.rotation.z = MathUtils.degToRad(baseRotation.z) + config.rotZ
+    object.rotation.x = MathUtils.degToRad(baseRotation.x) + (config.rotX ?? 0)
+    object.rotation.y = MathUtils.degToRad(baseRotation.y) + (config.rotY ?? 0)
+    object.rotation.z = MathUtils.degToRad(baseRotation.z) + (config.rotZ ?? 0)
   }
 })
 </script>
