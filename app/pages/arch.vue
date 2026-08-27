@@ -13,8 +13,8 @@ onMounted(() => {
     ease: 'none',
     scrollTrigger: {
       trigger: '.nextSection',
-      start: 'top 50%',
-      end: '65% top',
+      start: 'top 70%',
+      end: '67% top',
       scrub: true,
     }
   })

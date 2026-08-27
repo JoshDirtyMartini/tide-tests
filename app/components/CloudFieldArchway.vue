@@ -84,7 +84,7 @@ const SCENE_MODELS = [
         z: -3.0,
         scale: 0.28,
         scrollSpeed: 0.95,
-        mouseAmp: 0.04,
+        mouseAmp: 0.1,
         rotY: 0,
         rotX: -0.04,
         rotZ: 0,
