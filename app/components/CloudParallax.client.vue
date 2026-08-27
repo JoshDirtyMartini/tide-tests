@@ -5,7 +5,7 @@ defineProps({
   archway: {
     type: Boolean,
     default: false,
-  }
+  },
 })
 
 const enabled = ref(false)
@@ -29,8 +29,8 @@ onMounted(() => {
 <template>
   <TresCanvas
     v-if="enabled"
-    clear-color="#FCF4EE"
-    :alpha="false"
+    clear-color="#00000000"
+    :alpha="true"
     :antialias="false"
     :dpr="dpr"
     :tone-mapping="NoToneMapping"
@@ -49,7 +49,7 @@ onMounted(() => {
 .cloud-canvas {
   position: fixed !important;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
 }
 </style>

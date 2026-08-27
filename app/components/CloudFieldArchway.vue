@@ -3,7 +3,10 @@ import { useLoop, useTres } from '@tresjs/core'
 import {
   DoubleSide,
   MathUtils,
+  Mesh,
   MeshBasicMaterial,
+  Shape,
+  ShapeGeometry,
   SRGBColorSpace,
   Vector2,
 } from 'three'
@@ -19,6 +22,14 @@ const ZOOM_START = 0.5
 const TRAVEL_END = 0.8
 const CAMERA_Z = 12
 const ZOOM_AMOUNT = 30
+
+
+const OCCLUDER_COLOR = 0xfcf4ee
+const OCCLUDER_OUTER = 45
+const OCCLUDER_HOLE_W = 0.2
+const OCCLUDER_HOLE_BOTTOM = 0.1
+const OCCLUDER_HOLE_TOP = 0.95
+const OCCLUDER_Z_BIAS = -1
 
 function clamp01(v) {
   return Math.min(Math.max(v, 0), 1)
@@ -80,6 +91,7 @@ const SCENE_MODELS = [
         opacity: 0.2,
         hoverOpacity: 0.3,
         depthWrite: false,
+        portal: true,
       },
     ],
   },
@@ -217,7 +229,6 @@ const CLOUD_VERTEX_DISPLACE = `
       ? cursorInfluence(screenUv, mouseUv, uVelocity)
       : 0.0;
     float height = reliefHeight(worldPos);
-    // Camera-facing world offset → object space (shared verts stay welded)
     float amt = height * influence * 0.14;
     vec3 worldDisp = normalize(cameraPosition - worldPos) * amt;
     mat3 linear = mat3(modelMatrix);
@@ -249,19 +260,16 @@ const CLOUD_MAP_FRAGMENT = `
   float influence = uMotion > 0.001
     ? cursorInfluence(screenUv, mouseUv, uVelocity)
     : 0.0;
-  // Prefer fragment influence (higher res) but keep vertex hover as a floor
   influence = max(influence, vHover);
 
   vec4 sampledDiffuseColor = texture2D(map, vMapUv);
   diffuseColor *= sampledDiffuseColor;
 
   if (influence > 0.001) {
-    // Height from world pos (not flat-interpolated verts) for smoother relief
     float h = reliefHeight(vCloudWorldPos);
     float hx = dFdx(h);
     float hy = dFdy(h);
     vec3 bumpN = normalize(vec3(-hx * 12.0, -hy * 12.0, 1.0));
-    // Blend toward flat to avoid hard triangle-edge specular cracks
     vec3 fakeN = normalize(mix(vec3(0.0, 0.0, 1.0), bumpN, 0.65));
 
     vec3 lightDir = normalize(vec3(0.55, 0.8, 0.45));
@@ -269,7 +277,6 @@ const CLOUD_MAP_FRAGMENT = `
     vec3 viewDir = normalize(vec3((screenUv - 0.5) * vec2(-1.5, 1.5), 1.0));
     vec3 R = reflect(-viewDir, fakeN);
 
-    // Fake environment reflection (metals are mostly reflection, not diffuse)
     float envY = R.y * 0.5 + 0.5;
     vec3 env = mix(vec3(0.05, 0.03, 0.015), vec3(0.9, 0.75, 0.4), envY);
     env += vec3(1.0, 0.95, 0.82) * pow(saturate(R.y + 0.05), 10.0);
@@ -283,7 +290,6 @@ const CLOUD_MAP_FRAGMENT = `
     float ndh = saturate(dot(fakeN, H));
     float ndh2 = saturate(dot(fakeN, normalize(lightDir2 + viewDir)));
 
-    // Gold conductor F0 — colored reflectance
     vec3 F0 = vec3(1.0, 0.71, 0.29);
     float fresnel = pow(1.0 - ndv, 5.0);
     vec3 F = mix(F0, vec3(1.0, 0.98, 0.92), fresnel);
@@ -298,13 +304,11 @@ const CLOUD_MAP_FRAGMENT = `
     float specBroad = pow(ndh2, mix(70.0, 18.0, roughness)) * ndl2 * 1.4;
     float hot = pow(ndh, 120.0) * 2.6;
 
-    // Near-zero diffuse: reflection + specular lobes only
     vec3 metal = env * F0 * (0.45 + ndl * 0.55 + h * 0.15);
     metal += F * (specSharp + specBroad);
     metal += vec3(1.0, 0.93, 0.72) * hot;
     metal += F0 * fresnel * 0.4;
 
-    // Original map only modulates micro-contrast, not albedo
     float detail = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
     metal *= mix(0.88, 1.18, detail);
 
@@ -324,6 +328,7 @@ gltfLoader.setDRACOLoader(dracoLoader)
 
 const gltfsBySrc = shallowRef({})
 const instances = shallowRef([])
+const archOccluder = shallowRef(null)
 const pointer = { x: 10, y: 10 }
 const smooth = { x: 10, y: 10, scroll: 0 }
 const waterFollow = { x: 10, y: 10 }
@@ -339,6 +344,40 @@ const { onBeforeRender } = useLoop()
 function requestFrame(frames = 1) {
   if (disposed || (typeof document !== 'undefined' && document.hidden)) return
   invalidate(frames)
+}
+
+function createArchOccluder() {
+  const o = OCCLUDER_OUTER
+  const shape = new Shape()
+  shape.moveTo(-o, -o)
+  shape.lineTo(o, -o)
+  shape.lineTo(o, o)
+  shape.lineTo(-o, o)
+  shape.closePath()
+
+  const hw = OCCLUDER_HOLE_W
+  const bottom = OCCLUDER_HOLE_BOTTOM
+  const top = OCCLUDER_HOLE_TOP
+  const spring = top - hw
+  const hole = new Shape()
+  hole.moveTo(-hw, bottom)
+  hole.lineTo(hw, bottom)
+  hole.lineTo(hw, spring)
+  hole.absarc(0, spring, hw, 0, Math.PI, false)
+  hole.lineTo(-hw, bottom)
+  shape.holes.push(hole)
+
+  const geometry = new ShapeGeometry(shape)
+  const material = new MeshBasicMaterial({
+    color: OCCLUDER_COLOR,
+    side: DoubleSide,
+    depthWrite: true,
+    toneMapped: false,
+  })
+  const mesh = new Mesh(geometry, material)
+  mesh.frustumCulled = false
+  mesh.renderOrder = -2
+  return mesh
 }
 
 async function loadSceneModels() {
@@ -461,6 +500,14 @@ function clearInstances() {
     disposeInstance(object)
   }
   instances.value = []
+
+  const occluder = archOccluder.value
+  if (occluder) {
+    occluder.removeFromParent?.()
+    occluder.geometry?.dispose?.()
+    occluder.material?.dispose?.()
+    archOccluder.value = null
+  }
 }
 
 function rebuildInstances() {
@@ -473,6 +520,7 @@ function rebuildInstances() {
   instances.value = SCENE_MODELS.flatMap((model) =>
     spawnInstances(loaded[model.src], model.instances, model.baseRotation),
   )
+  archOccluder.value = createArchOccluder()
   nextTick(() => requestFrame(4))
 }
 
@@ -564,8 +612,6 @@ onBeforeRender(({ delta, renderer }) => {
   waterMouse.value.set(waterFollow.x, waterFollow.y)
   waterResolution.value.set(renderer.domElement.width, renderer.domElement.height)
 
-
-  // Overlap: Y eases to a stop at TRAVEL_END while zoom already ramps from ZOOM_START.
   const travelT = clamp01(smooth.scroll / Math.max(TRAVEL_END, 1e-4))
   const travelScroll = easeOutCubic(travelT) * TRAVEL_END
   const zoom = smoothstep01(
@@ -577,14 +623,13 @@ onBeforeRender(({ delta, renderer }) => {
     cam.position.z = CAMERA_Z - zoom * ZOOM_AMOUNT
   }
 
+  let portalArch = null
+
   for (const { object, config, baseRotation } of instances.value) {
     const y =
       config.y +
       travelScroll * SCROLL_TRAVEL * config.scrollSpeed +
       smooth.y * config.mouseAmp * 0.55
-
-    object.visible = Math.abs(y) < CULL_Y + 3
-    if (!object.visible) continue
 
     object.position.x = config.x + smooth.x * config.mouseAmp
     object.position.y = y
@@ -593,6 +638,22 @@ onBeforeRender(({ delta, renderer }) => {
     object.rotation.x = MathUtils.degToRad(baseRotation.x) + (config.rotX ?? 0)
     object.rotation.y = MathUtils.degToRad(baseRotation.y) + (config.rotY ?? 0)
     object.rotation.z = MathUtils.degToRad(baseRotation.z) + (config.rotZ ?? 0)
+
+    if (config.portal) {
+      object.visible = true
+      portalArch = object
+    } else {
+      object.visible = Math.abs(y) < CULL_Y + 3
+    }
+  }
+
+  const occluder = archOccluder.value
+  if (occluder && portalArch) {
+    occluder.position.copy(portalArch.position)
+    occluder.position.z += OCCLUDER_Z_BIAS
+    occluder.rotation.copy(portalArch.rotation)
+    occluder.scale.set(1, 1, 1)
+    occluder.visible = true
   }
 })
 </script>
@@ -603,4 +664,5 @@ onBeforeRender(({ delta, renderer }) => {
     :key="index"
     :object="inst.object"
   />
+  <primitive v-if="archOccluder" :object="archOccluder" />
 </template>
