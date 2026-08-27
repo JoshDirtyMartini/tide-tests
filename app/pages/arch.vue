@@ -4,16 +4,21 @@ import ScrollTrigger from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
+let ctx
+
+
 
 
 onMounted(() => {
+
+  ctx = gsap.context(() => {
 
   gsap.to('.nextSection--image', {
     scale: 1,
     ease: 'none',
     scrollTrigger: {
       trigger: '.nextSection',
-      start: 'top 70%',
+      start: '61% bottom',
       end: '67% top',
       scrub: true,
     }
@@ -31,14 +36,16 @@ onMounted(() => {
 
   gsap.to('.nextSection--image', {
     translateY: 0,
-    ease: 'none',
+    ease: 'power2.out',
     scrollTrigger: {
       trigger: '.nextSection',
-      start: 'top top',
-      end: '80% bottom',
+      start: 'top bottom',
+      end: 'bottom bottom',
       scrub: true,
     }
   })
+
+})
   
 
 })
@@ -87,7 +94,7 @@ onMounted(() => {
       class="nextSection relative"
       aria-label="Beyond the arch"
     >
-    <div class=" nextSection--image sticky top-0 left-0 w-screen h-screen relative scale-[0.1] translate-y-[50svh] bg-black">
+    <div class=" nextSection--image sticky top-0 left-0 w-screen h-screen relative scale-[0.5] translate-y-[150svh] bg-black">
       <img
         src="https://res.cloudinary.com/aenetworks/image/upload/c_fill,ar_1.7777777777777777,w_3840,h_2160,g_auto/dpr_auto/f_auto/q_auto:eco/v1/hith-sistine-chape-2?_a=BAVMn6E80"
         alt="placeholder"
