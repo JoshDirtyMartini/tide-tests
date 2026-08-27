@@ -66,7 +66,7 @@ async function setupMotion() {
     tl.fromTo(
       image,
       { scale: 0.5 },
-      { scale: 1, ease: 'none', duration: motionDur },
+      { scale: 1, ease: 'none', duration: motionDur - 0.15 },
       props.motionStart,
     )
 
