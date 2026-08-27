@@ -1,40 +1,109 @@
+<script setup>
+import gsap from 'gsap';
+import ScrollTrigger from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
+
+let ctx
+
+
+
+
+onMounted(() => {
+
+  ctx = gsap.context(() => {
+
+  gsap.to('.nextSection--image', {
+    scale: 1,
+    ease: 'none',
+    scrollTrigger: {
+      trigger: '.nextSection',
+      start: '61% bottom',
+      end: '67% top',
+      scrub: true,
+    }
+  })
+  gsap.to('.nextSection--image-item', {
+    opacity: 1,
+    ease: 'none',
+    scrollTrigger: {
+      trigger: '.nextSection',
+      start: 'top top',
+      end: '70% top',
+      scrub: true,
+    }
+  })
+
+  gsap.to('.nextSection--image', {
+    translateY: 0,
+    ease: 'power2.out',
+    scrollTrigger: {
+      trigger: '.nextSection',
+      start: 'top bottom',
+      end: 'bottom bottom',
+      scrub: true,
+    }
+  })
+
+})
+  
+
+})
+
+
+
+
+</script>
+
+
+
 <template>
   <div class="page">
-    <CloudParallax />
+    <CloudParallax archway />
 
     <main class="content">
       <section class="panel hero">
         <div class="w-screen h-screen flex items-center pl-[60vw]">
           <div class="w-[30vw] h-[60svh] bg-white"></div>
         </div>
-
-       
       </section>
 
       <section class="panel">
         <div class="w-screen h-screen flex items-center pl-[10vw]">
           <div class="w-[30vw] h-[60svh] bg-white"></div>
         </div>
-        
       </section>
 
       <section class="panel">
-
-
-      </section>
-
-      <section class="panel">
-  <div class="w-screen h-screen flex items-center pl-[60vw]">
+        <div class="w-screen h-screen flex items-center pl-[60vw]">
           <div class="w-[30vw] h-[60svh] bg-white"></div>
         </div>
-      
       </section>
 
       <section class="panel"></section>
       <section class="panel"></section>
-      <section class="panel"></section>
-      <section class="panel"></section>
+
+
+
+      <section class="panel" aria-hidden="true"></section>
+
+
     </main>
+
+    <section
+      class="nextSection relative"
+      aria-label="Beyond the arch"
+    >
+    <div class=" nextSection--image sticky top-0 left-0 w-screen h-screen relative scale-[0.5] translate-y-[150svh] bg-black">
+      <img
+        src="https://res.cloudinary.com/aenetworks/image/upload/c_fill,ar_1.7777777777777777,w_3840,h_2160,g_auto/dpr_auto/f_auto/q_auto:eco/v1/hith-sistine-chape-2?_a=BAVMn6E80"
+        alt="placeholder"
+        class="w-full h-full object-cover nextSection--image-item opacity-50"
+      />
+
+    </div>
+
+    </section>
   </div>
 </template>
 
@@ -42,12 +111,12 @@
 .page {
   position: relative;
   min-height: 100svh;
-  background: transparent;
+  background: #fcf4ee;
 }
 
 .content {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
 }
 
@@ -56,47 +125,21 @@
   flex-direction: column;
   justify-content: center;
   min-height: 100svh;
-
-
 }
 
 .hero {
   max-width: 42rem;
 }
 
-.eyebrow {
-  margin: 0 0 0.75rem;
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  font-size: 0.85rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #6b5344;
-}
+.nextSection {
+  position: relative;
+  width: 100%;
+  height: 500svh;
+  z-index: 0;
+  margin-top: -500svh;
+  min-height: 100svh;
+  margin-bottom: 100svh;
+  background: #fcf4ee;
 
-h1,
-h2 {
-  margin: 0 0 1rem;
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  font-weight: 500;
-  color: #2c2118;
-  line-height: 1.05;
-}
-
-h1 {
-  font-size: clamp(2.6rem, 7vw, 4.8rem);
-}
-
-h2 {
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
-}
-
-.lede,
-.panel p {
-  margin: 0;
-  font-family: "Avenir Next", "Segoe UI", sans-serif;
-  font-size: clamp(1rem, 2.2vw, 1.15rem);
-  line-height: 1.55;
-  color: #4a3a2f;
-  max-width: 28rem;
 }
 </style>
