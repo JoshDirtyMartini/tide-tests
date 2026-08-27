@@ -8,7 +8,7 @@ const props = defineProps({
 
   minTrack: {
     type: Number,
-    default: 100,
+    default: 6,
   },
   motionStart: {
     type: Number,
