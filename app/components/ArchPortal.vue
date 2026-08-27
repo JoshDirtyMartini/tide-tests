@@ -12,7 +12,7 @@ const props = defineProps({
   },
   motionStart: {
     type: Number,
-    default: 0.2,
+    default: 0.05,
   },
 })
 
