@@ -1,10 +1,14 @@
 <script setup>
 import { useLoop, useTres } from '@tresjs/core'
 import {
+  CanvasTexture,
+  Color,
   DoubleSide,
+  Group,
   MathUtils,
   Mesh,
   MeshBasicMaterial,
+  PlaneGeometry,
   Shape,
   ShapeGeometry,
   SRGBColorSpace,
@@ -15,14 +19,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
 const CLOUD_OPACITY = 0.2
 const HOVER_OPACITY = 0.5
-const SCROLL_TRAVEL = 20
 const CULL_Y = 7
-
-const ZOOM_START = 0.5
-const TRAVEL_END = 0.8
-const CAMERA_Z = 12
-const ZOOM_AMOUNT = 30
-
 
 const OCCLUDER_COLOR = 0xfcf4ee
 const OCCLUDER_OUTER = 45
@@ -30,20 +27,6 @@ const OCCLUDER_HOLE_W = 0.2
 const OCCLUDER_HOLE_BOTTOM = 0.1
 const OCCLUDER_HOLE_TOP = 0.95
 const OCCLUDER_Z_BIAS = -1
-
-function clamp01(v) {
-  return Math.min(Math.max(v, 0), 1)
-}
-
-function easeOutCubic(t) {
-  return 1 - Math.pow(1 - t, 3)
-}
-
-function smoothstep01(t) {
-  const x = clamp01(t)
-  return x * x * (3 - 2 * x)
-}
-
 
 const SCENE_MODELS = [
   {
@@ -329,15 +312,14 @@ gltfLoader.setDRACOLoader(dracoLoader)
 const gltfsBySrc = shallowRef({})
 const instances = shallowRef([])
 const archOccluder = shallowRef(null)
-const pointer = { x: 10, y: 10 }
-const smooth = { x: 10, y: 10, scroll: 0 }
+const textInstance = shallowRef(null)
+const sceneTextConfig = useArchSceneText()
 const waterFollow = { x: 10, y: 10 }
-let targetScroll = 0
-let hasPointer = false
 let lastWaterX = 10
 let lastWaterY = 10
 let disposed = false
 
+const { pointer, cameraZ, getWorldPosition } = useArchwayMotion()
 const { invalidate, camera } = useTres()
 const { onBeforeRender } = useLoop()
 
@@ -345,6 +327,142 @@ function requestFrame(frames = 1) {
   if (disposed || (typeof document !== 'undefined' && document.hidden)) return
   invalidate(frames)
 }
+
+function disposeTextMesh(mesh) {
+  mesh.geometry?.dispose?.()
+  if (mesh.material?.map) {
+    mesh.material.map.dispose()
+    mesh.material.map = null
+  }
+  mesh.material?.dispose?.()
+}
+
+const DEFAULT_TEXT_FONT = 'Inter, sans-serif'
+
+function getLineFont(line) {
+  const fontSize = line.canvasSize ?? 128
+  const weight = line.weight ?? 400
+  const family = line.font ?? DEFAULT_TEXT_FONT
+  const lineHeight = line.lineHeight ?? 0.9;
+  return { font: `${weight} ${fontSize}px ${family}`, fontSize, lineHeight }
+}
+
+function measureTextLine(ctx, text, fontSize, letterSpacing) {
+  const spacing = letterSpacing ? fontSize * letterSpacing : 0
+  const chars = text.split('')
+  const widths = chars.map((char) => ctx.measureText(char).width)
+  const totalWidth =
+    widths.reduce((sum, w) => sum + w, 0) + spacing * Math.max(chars.length - 1, 0)
+  return { chars, widths, totalWidth, spacing }
+}
+
+function drawCanvasLine(ctx, line, width, height, color) {
+  const { font, fontSize, lineHeight } = getLineFont(line)
+
+  ctx.clearRect(0, 0, width, height)
+  ctx.font = font
+  ctx.fillStyle = color
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  const textLines = line.text.split('\n')
+  const rowHeight = fontSize * lineHeight
+  const blockHeight = rowHeight * textLines.length
+  let y = height / 2 - blockHeight / 2 + rowHeight / 2
+
+  for (const textLine of textLines) {
+    const { chars, widths, totalWidth, spacing } = measureTextLine(
+      ctx,
+      textLine,
+      fontSize,
+      line.letterSpacing,
+    )
+
+    let x = width / 2 - totalWidth / 2
+
+    for (let i = 0; i < chars.length; i++) {
+      const charWidth = widths[i]
+      ctx.fillText(chars[i], x + charWidth / 2, y)
+      x += charWidth + spacing
+    }
+
+    y += rowHeight
+  }
+}
+
+function createTextPlane(line, colorHex) {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  const { font, fontSize, lineHeight } = getLineFont(line)
+  const textLines = line.text.split('\n')
+  const rowHeight = fontSize * lineHeight
+
+  ctx.font = font
+  const totalWidth = textLines.reduce(
+    (max, textLine) =>
+      Math.max(max, measureTextLine(ctx, textLine, fontSize, line.letterSpacing).totalWidth),
+    0,
+  )
+
+  canvas.width = Math.ceil(totalWidth + fontSize)
+  canvas.height = Math.ceil(rowHeight * textLines.length)
+
+  drawCanvasLine(ctx, line, canvas.width, canvas.height, colorHex)
+
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+
+  const planeHeight = line.size ?? 0.2
+  const planeWidth = planeHeight * (canvas.width / canvas.height)
+  const geometry = new PlaneGeometry(planeWidth, planeHeight)
+  const material = new MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+  })
+
+  const mesh = new Mesh(geometry, material)
+  mesh.position.y = line.y ?? 0
+  return mesh
+}
+
+function disposeTextInstance() {
+  const inst = textInstance.value
+  if (!inst) return
+
+  inst.object.traverse((child) => {
+    if (child.isMesh) disposeTextMesh(child)
+  })
+  inst.object.removeFromParent?.()
+  textInstance.value = null
+}
+
+async function buildTextInstance(config) {
+  disposeTextInstance()
+  if (!config?.lines?.length) return
+
+  await Promise.all(config.lines.map((line) => document.fonts.load(getLineFont(line).font)))
+
+  const group = new Group()
+  const color = new Color(config.color ?? '#C29A65').getStyle()
+
+  for (const line of config.lines) {
+    group.add(createTextPlane(line, color))
+  }
+
+  textInstance.value = { object: group, config }
+  nextTick(() => requestFrame(4))
+}
+
+watch(
+  sceneTextConfig,
+  (config) => {
+    if (disposed) return
+    buildTextInstance(config)
+  },
+  { immediate: true, deep: true },
+)
 
 function createArchOccluder() {
   const o = OCCLUDER_OUTER
@@ -526,56 +644,29 @@ function rebuildInstances() {
 
 loadSceneModels()
 
-let removePointer
 let removeVisibility
-let removeScroll
-
-function readScrollProgress() {
-  const max = document.documentElement.scrollHeight - window.innerHeight
-  targetScroll = max > 0 ? window.scrollY / max : 0
-}
 
 onMounted(() => {
-  const onPointerMove = (event) => {
-    pointer.x = (event.clientX / window.innerWidth) * 2 - 1
-    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1
-    if (!hasPointer) {
-      smooth.x = pointer.x
-      smooth.y = pointer.y
-      waterFollow.x = pointer.x
-      waterFollow.y = pointer.y
-      lastWaterX = pointer.x
-      lastWaterY = pointer.y
-      hasPointer = true
-    }
-    requestFrame()
-  }
-
-  window.addEventListener('pointermove', onPointerMove, { passive: true })
-  removePointer = () => window.removeEventListener('pointermove', onPointerMove)
+  registerArchwayRenderSync()
+  waterFollow.x = pointer.x
+  waterFollow.y = pointer.y
+  lastWaterX = pointer.x
+  lastWaterY = pointer.y
 
   const onVisibility = () => {
     if (!document.hidden) requestFrame()
   }
   document.addEventListener('visibilitychange', onVisibility)
   removeVisibility = () => document.removeEventListener('visibilitychange', onVisibility)
-
-  const onScroll = () => {
-    readScrollProgress()
-    requestFrame()
-  }
-  window.addEventListener('scroll', onScroll, { passive: true })
-  removeScroll = () => window.removeEventListener('scroll', onScroll)
-  readScrollProgress()
   requestFrame(2)
 })
 
 onBeforeUnmount(() => {
   disposed = true
-  removePointer?.()
+  unregisterArchwayRenderSync()
   removeVisibility?.()
-  removeScroll?.()
   clearInstances()
+  disposeTextInstance()
   for (const gltf of Object.values(gltfsBySrc.value)) {
     gltf?.scene?.traverse((child) => {
       child.geometry?.dispose?.()
@@ -588,11 +679,8 @@ onBeforeUnmount(() => {
 onBeforeRender(({ delta, renderer }) => {
   if (disposed || (typeof document !== 'undefined' && document.hidden)) return
 
-  smooth.x += (pointer.x - smooth.x) * 0.07
-  smooth.y += (pointer.y - smooth.y) * 0.07
   waterFollow.x += (pointer.x - waterFollow.x) * 0.22
   waterFollow.y += (pointer.y - waterFollow.y) * 0.22
-  smooth.scroll = targetScroll
 
   const invDelta = 1 / Math.max(delta, 0.001)
   const vx = (waterFollow.x - lastWaterX) * invDelta
@@ -612,28 +700,20 @@ onBeforeRender(({ delta, renderer }) => {
   waterMouse.value.set(waterFollow.x, waterFollow.y)
   waterResolution.value.set(renderer.domElement.width, renderer.domElement.height)
 
-  const travelT = clamp01(smooth.scroll / Math.max(TRAVEL_END, 1e-4))
-  const travelScroll = easeOutCubic(travelT) * TRAVEL_END
-  const zoom = smoothstep01(
-    (smooth.scroll - ZOOM_START) / Math.max(1 - ZOOM_START, 1e-4),
-  )
-
   const cam = camera.value
   if (cam) {
-    cam.position.z = CAMERA_Z - zoom * ZOOM_AMOUNT
+    cam.position.z = cameraZ.value
+    setArchwayCamera(cam)
   }
 
   let portalArch = null
 
   for (const { object, config, baseRotation } of instances.value) {
-    const y =
-      config.y +
-      travelScroll * SCROLL_TRAVEL * config.scrollSpeed +
-      smooth.y * config.mouseAmp * 0.55
+    const world = getWorldPosition(config)
 
-    object.position.x = config.x + smooth.x * config.mouseAmp
-    object.position.y = y
-    object.position.z = config.z
+    object.position.x = world.x
+    object.position.y = world.y
+    object.position.z = world.z
 
     object.rotation.x = MathUtils.degToRad(baseRotation.x) + (config.rotX ?? 0)
     object.rotation.y = MathUtils.degToRad(baseRotation.y) + (config.rotY ?? 0)
@@ -643,8 +723,18 @@ onBeforeRender(({ delta, renderer }) => {
       object.visible = true
       portalArch = object
     } else {
-      object.visible = Math.abs(y) < CULL_Y + 3
+      object.visible = Math.abs(world.y) < CULL_Y + 3
     }
+  }
+
+  const textInst = textInstance.value
+  if (textInst) {
+    const world = getWorldPosition(textInst.config)
+
+    textInst.object.position.x = world.x
+    textInst.object.position.y = world.y
+    textInst.object.position.z = world.z
+    textInst.object.visible = Math.abs(world.y) < CULL_Y + 3
   }
 
   const occluder = archOccluder.value
@@ -655,6 +745,8 @@ onBeforeRender(({ delta, renderer }) => {
     occluder.scale.set(1, 1, 1)
     occluder.visible = true
   }
+
+  notifyArchwayRenderSync()
 })
 </script>
 
@@ -664,5 +756,6 @@ onBeforeRender(({ delta, renderer }) => {
     :key="index"
     :object="inst.object"
   />
+  <primitive v-if="textInstance" :object="textInstance.object" />
   <primitive v-if="archOccluder" :object="archOccluder" />
 </template>

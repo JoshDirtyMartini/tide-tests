@@ -39,7 +39,7 @@ onMounted(() => {
     window-size
     class="cloud-canvas"
   >
-    <TresPerspectiveCamera :position="[0, 0, 15]" :fov="20" />
+    <TresPerspectiveCamera :position="[0, 0, 12]" :fov="20" />
     <CloudField v-if="!archway" />
     <CloudFieldArchway v-else />
   </TresCanvas>

@@ -14,7 +14,13 @@ const props = defineProps({
     type: Number,
     default: 0.05,
   },
+  sceneText: {
+    type: Object,
+    default: null,
+  },
 })
+
+provideArchSceneText(toRef(() => props.sceneText))
 
 const root = ref(null)
 const trackEl = ref(null)
