@@ -5,7 +5,6 @@ import ScrollTrigger from 'gsap/ScrollTrigger'
 gsap.registerPlugin(ScrollTrigger)
 
 const props = defineProps({
-
   minTrack: {
     type: Number,
     default: 6,
@@ -18,7 +17,29 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  burnTo: {
+    type: String,
+    default: '',
+  },
+  burnBehind: {
+    type: String,
+    default: '',
+  },
+  burnFrom: {
+    type: String,
+    default: '',
+  },
+  sketchSpeed: {
+    type: Number,
+    default: 1.3,
+  },
+  sketchLead: {
+    type: Number,
+    default: 0.001,
+  },
 })
+
+const useBurn = computed(() => Boolean(props.burnTo))
 
 provideArchSceneText(toRef(() => props.sceneText))
 
@@ -27,6 +48,8 @@ const trackEl = ref(null)
 const contentEl = ref(null)
 const imageEl = ref(null)
 const imageItemEl = ref(null)
+const nextSectionEl = ref(null)
+const burnScrollRef = ref(null)
 const trackPx = ref(0)
 
 let ctx
@@ -47,6 +70,7 @@ async function setupMotion() {
   const track = trackEl.value
   const image = imageEl.value
   const item = imageItemEl.value
+  const nextSection = nextSectionEl.value
   if (!track || !image || !item) return
 
   const motionDur = 1 - props.motionStart
@@ -65,7 +89,7 @@ async function setupMotion() {
     tl.fromTo(
       image,
       { y: () => window.innerHeight * 1.5 },
-      { y: 0, ease: 'power2.out', duration: 1  },
+      { y: 0, ease: 'power2.out', duration: 1 },
       0,
     )
 
@@ -76,12 +100,28 @@ async function setupMotion() {
       props.motionStart + 0.15,
     )
 
-    tl.fromTo(
-      item,
-      { opacity: 0.5 },
-      { opacity: 1, ease: 'none', duration: motionDur },
-      props.motionStart,
-    )
+    if (useBurn.value && nextSection) {
+      ScrollTrigger.create({
+        trigger: nextSection,
+        start: '50% top',
+        end: 'bottom top',
+        scrub: true,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => {
+          burnScrollRef.value?.setProgress(self.progress)
+        },
+        onRefresh: (self) => {
+          burnScrollRef.value?.setProgress(self.progress)
+        },
+      })
+    } else if (!useBurn.value) {
+      tl.fromTo(
+        item,
+        { opacity: 0.5 },
+        { opacity: 1, ease: 'none', duration: motionDur },
+        props.motionStart,
+      )
+    }
   }, root.value)
 
   ScrollTrigger.refresh()
@@ -90,6 +130,16 @@ async function setupMotion() {
 onMounted(async () => {
   await nextTick()
   await setupMotion()
+
+  watch(
+    () => burnScrollRef.value?.isReady,
+    (ready) => {
+      if (ready) {
+        ScrollTrigger.refresh()
+      }
+    },
+    { immediate: true },
+  )
 
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => {
@@ -100,6 +150,7 @@ onMounted(async () => {
     })
     if (contentEl.value) resizeObserver.observe(contentEl.value)
     if (trackEl.value) resizeObserver.observe(trackEl.value)
+    if (nextSectionEl.value) resizeObserver.observe(nextSectionEl.value)
   }
 
   window.addEventListener('resize', setupMotion, { passive: true })
@@ -115,7 +166,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="page">
-    <CloudParallax archway />
+    <CloudParallax archway burn />
 
     <div
       ref="trackEl"
@@ -128,6 +179,7 @@ onBeforeUnmount(() => {
     </div>
 
     <section
+      ref="nextSectionEl"
       class="nextSection relative"
       :style="{
         height: trackPx ? `${trackPx}px` : `${minTrack * 100}svh`,
@@ -139,8 +191,18 @@ onBeforeUnmount(() => {
         ref="imageEl"
         class="nextSection--image sticky top-0 left-0 w-screen h-screen relative bg-black"
       >
-        <div ref="imageItemEl" class="nextSection--image-item w-full h-full">
-          <slot name="destination" />
+        <div ref="imageItemEl" class="nextSection--image-item relative w-full h-full">
+          <SideBurnScroll
+            v-if="useBurn"
+            ref="burnScrollRef"
+            class="absolute inset-0"
+            :to="burnTo"
+            :from="burnFrom"
+            :behind="burnBehind"
+            :sketch-speed="sketchSpeed"
+            :sketch-lead="sketchLead"
+          />
+          <slot v-else name="destination" />
         </div>
       </div>
     </section>

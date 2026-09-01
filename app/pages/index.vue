@@ -1,18 +1,14 @@
 <template>
-  <ArchPortal :scene-text="sceneText">
+  <ArchPortal
+    :scene-text="sceneText"
+    :burn-to="burnTo"
+    :burn-behind="burnBehind"
+  >
     <template #content>
-      <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]"></div>
+      <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]" />
 
-      <div class="w-[30vw] h-[70svh] bg-white ml-[10vw] mb-[30svh]"></div>
-      <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]"></div>
-    </template>
-
-    <template #destination>
-      <img
-        src="https://res.cloudinary.com/aenetworks/image/upload/c_fill,ar_1.7777777777777777,w_3840,h_2160,g_auto/dpr_auto/f_auto/q_auto:eco/v1/hith-sistine-chape-2?_a=BAVMn6E80"
-        alt="placeholder"
-        class="w-full h-full object-cover"
-      />
+      <div class="w-[30vw] h-[70svh] bg-white ml-[10vw] mb-[30svh]" />
+      <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]" />
     </template>
   </ArchPortal>
 </template>
@@ -30,10 +26,7 @@ const sceneText = {
   mouseAmp: 0.1,
   color: '#C29A65',
 }
-</script>
 
-<style scoped>
-.hero {
-  max-width: 42rem;
-}
-</style>
+const burnTo = 'https://res.cloudinary.com/aenetworks/image/upload/c_fill,ar_1.7777777777777777,w_3840,h_2160,g_auto/dpr_auto/f_auto/q_auto:eco/v1/hith-sistine-chape-2?_a=BAVMn6E80'
+const burnBehind = 'https://res.cloudinary.com/aenetworks/image/upload/c_fill,ar_1.7777777777777777,w_3840,h_2160,g_auto/dpr_auto/f_auto/q_auto:eco/v1/hith-sistine-chape-2?_a=BAVMn6E80' 
+</script>

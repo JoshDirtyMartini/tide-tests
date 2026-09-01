@@ -6,6 +6,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  burn: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const enabled = ref(false)
@@ -41,6 +45,7 @@ onMounted(() => {
   >
     <TresPerspectiveCamera :position="[0, 0, 12]" :fov="20" />
     <CloudField v-if="!archway" />
+    <CloudFieldArchwayBurn v-else-if="archway && burn" />
     <CloudFieldArchway v-else />
   </TresCanvas>
 </template>
