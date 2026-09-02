@@ -3,6 +3,9 @@
     :scene-text="sceneText"
     :burn-to="burnTo"
     :burn-behind="burnBehind"
+
+    :behind-opacity="0.25"
+    :sketch-opacity="0.6"
   >
     <template #content>
       <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]" />
@@ -27,6 +30,6 @@ const sceneText = {
   color: '#C29A65',
 }
 
-const burnTo = 'https://res.cloudinary.com/aenetworks/image/upload/c_fill,ar_1.7777777777777777,w_3840,h_2160,g_auto/dpr_auto/f_auto/q_auto:eco/v1/hith-sistine-chape-2?_a=BAVMn6E80'
-const burnBehind = 'https://res.cloudinary.com/aenetworks/image/upload/c_fill,ar_1.7777777777777777,w_3840,h_2160,g_auto/dpr_auto/f_auto/q_auto:eco/v1/hith-sistine-chape-2?_a=BAVMn6E80' 
+const burnTo = '/placeholder.webp'
+const burnBehind = '/placeholder.webp' 
 </script>

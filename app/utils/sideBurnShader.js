@@ -31,13 +31,13 @@ float fbm(vec2 p) {
   return v;
 }
 
-float fbmRich(vec2 p) {
-  float v = 0.0;
-  v += noise(p * 1.0) * 0.5;
-  v += noise(p * 2.17) * 0.25;
-  v += noise(p * 4.5) * 0.125;
-  v += noise(p * 9.0) * 0.0625;
-  return v;
+// n, n2, grain, edgeWarpNoise
+vec4 computeBurnNoise(vec2 uv, vec2 centeredUv, float aspect, float uTime) {
+  float n = fbm(vec2(uv.y * 5.0 + uTime * 0.55, uTime * 0.42));
+  float n2 = fbm(centeredUv * 9.0 + uTime * 0.28);
+  float grain = noise(uv * 18.0 + uTime * 1.35);
+  float edgeWarpNoise = fbm(centeredUv * 20.0 + vec2(uTime * 0.14, uTime * 0.09));
+  return vec4(n, n2, grain, edgeWarpNoise);
 }
 `
 
@@ -50,17 +50,16 @@ float computeBurnField(
   float centerBurn,
   float dir,
   float uTime,
-  vec2 uSlide
+  vec4 burnNoise
 ) {
   float burnT = t * t * (3.0 - 2.0 * t);
   vec2 centeredUv = (uv - 0.5) * vec2(aspect, 1.0);
 
-  float noiseValue = fbm(centeredUv * 20.0 + vec2(uTime * 0.14, uTime * 0.09));
-  float edgeWarp = (noiseValue - 0.5) * spread;
+  float n = burnNoise.x;
+  float n2 = burnNoise.y;
+  float grain = burnNoise.z;
+  float edgeWarp = (burnNoise.w - 0.5) * spread;
   float edgeLife = 4.0 * burnT * (1.0 - burnT);
-  float n = fbm(vec2(uv.y * 5.0 + uTime * 0.55, uTime * 0.42));
-  float n2 = fbmRich(centeredUv * 9.0 + uTime * 0.28);
-  float grain = noise(uv * 18.0 + uTime * 1.35);
 
   float field;
   if (centerBurn > 0.5) {
@@ -95,68 +94,74 @@ float sketchLuminance(vec3 c) {
 }
 
 vec3 toGrayscale(vec3 c) {
-  float l = sketchLuminance(c);
-  return vec3(l);
+  return vec3(sketchLuminance(c));
 }
 
 vec3 behindPhoto(vec2 uv) {
   return toGrayscale(texture2D(uBehind, uv).rgb);
 }
 
-vec3 sketchColor(vec2 uv, vec3 photo) {
-  vec2 texel = 1.0 / uResolution;
-  float l = sketchLuminance(photo);
-  float lR = sketchLuminance(texture2D(uBehind, uv + vec2(texel.x, 0.0)).rgb);
-  float lL = sketchLuminance(texture2D(uBehind, uv - vec2(texel.x, 0.0)).rgb);
-  float lU = sketchLuminance(texture2D(uBehind, uv + vec2(0.0, texel.y)).rgb);
-  float lD = sketchLuminance(texture2D(uBehind, uv - vec2(0.0, texel.y)).rgb);
+vec3 faintBehindPhoto(vec3 photo) {
+  vec3 paper = vec3(0.97, 0.95, 0.91);
+  return mix(paper, photo, uBehindOpacity);
+}
 
-  float edge = length(vec2(lR - lL, lU - lD));
-  edge = smoothstep(0.015, 0.12, edge);
+vec3 sketchColor(vec2 uv, vec3 photo) {
+  float l = sketchLuminance(photo);
+  float tone = 1.0 - l;
+
+  // Bold contour strokes
+  float edge = length(vec2(dFdx(l), dFdy(l)));
+  edge = smoothstep(0.004, 0.07, edge);
 
   vec3 paper = vec3(0.97, 0.95, 0.91);
   vec3 ink = vec3(0.11, 0.09, 0.07);
+  vec3 graphite = vec3(0.52, 0.48, 0.44);
 
-  float hatchA = sin((uv.x * 1.15 + uv.y * 0.85) * 95.0 + uTime * 0.35);
-  float hatchB = sin((uv.x * 0.75 - uv.y * 1.05) * 110.0 - uTime * 0.28);
-  float hatch = smoothstep(0.08, 0.82, hatchA * hatchB * 0.5 + 0.5);
-  float shade = smoothstep(0.22, 0.78, 1.0 - l);
-  float lines = hatch * shade;
+  // Stepped pencil shading — fills midtones, not just outlines
+  float shade = floor(tone * 7.0) / 7.0;
+  shade = smoothstep(0.08, 0.92, shade) * 0.62;
 
-  float grain = noise(uv * 42.0 + uTime * 0.6) * 0.05;
-  vec3 sketch = mix(paper, ink, edge * 3.2 + lines * 0.65 + grain);
-  sketch = mix(sketch, photo * 0.45 + paper * 0.55, 0.12);
+  // Soft paper grain in shaded areas
+  float grain = (noise(uv * 22.0 + uTime * 0.18) - 0.5) * 0.07;
+  shade = clamp(shade + grain * smoothstep(0.15, 0.75, tone), 0.0, 1.0);
+
+  float inkAmt = clamp(edge * 2.6 + shade, 0.0, 1.0);
+  vec3 sketch = mix(paper, ink, inkAmt);
+  sketch = mix(sketch, graphite, shade * 0.35 * (1.0 - edge * 0.6));
 
   return sketch;
 }
 
-vec3 behindDisplay(vec2 uv, float t, float aspect, float dir, float feather) {
+vec3 behindDisplay(vec2 uv, float t, float aspect, float dir, float feather, vec4 burnNoise) {
   vec3 photo = behindPhoto(uv);
+  vec3 faintPhoto = faintBehindPhoto(photo);
 
   if (t <= 0.0) {
-    return photo;
+    return faintPhoto;
   }
 
   float tSketch = min(1.0, t * uSketchSpeed + uSketchLead);
-  float fieldSketch = computeBurnField(uv, tSketch, aspect, uSpread, uCenterBurn, dir, uTime, vec2(0.0));
-  float fieldMain = computeBurnField(uv, t, aspect, uSpread, uCenterBurn, dir, uTime, vec2(0.0));
+  float fieldSketch = computeBurnField(uv, tSketch, aspect, uSpread, uCenterBurn, dir, uTime, burnNoise);
+  float fieldMain = computeBurnField(uv, t, aspect, uSpread, uCenterBurn, dir, uTime, burnNoise);
 
   float sketchFeather = max(feather * 4.5, 0.045);
-
-  // Fade in sketch approaching the leading front (outer edge of the ring)
   float outerFade = 1.0 - smoothstep(-sketchFeather, sketchFeather * 1.35, fieldSketch);
-  // Fade out sketch as the main burn front takes over (inner edge of the ring)
   float innerFade = smoothstep(-sketchFeather * 1.35, sketchFeather, fieldMain);
-
   float band = outerFade * innerFade;
   band = band * band * (3.0 - 2.0 * band);
 
-  return mix(photo, sketchColor(uv, photo), band);
+  if (band < 0.001) {
+    return faintPhoto;
+  }
+
+  vec3 sketch = sketchColor(uv, photo);
+  return mix(faintPhoto, sketch, band * uSketchOpacity);
 }
 `
 
 export const SIDE_BURN_FRAGMENT_SHADER = `
-precision highp float;
+precision mediump float;
 
 uniform sampler2D uFrom;
 uniform sampler2D uTo;
@@ -169,6 +174,8 @@ uniform float uRevealBehind;
 uniform float uUseBehind;
 uniform float uSketchLead;
 uniform float uSketchSpeed;
+uniform float uSketchOpacity;
+uniform float uBehindOpacity;
 uniform float uTime;
 uniform vec2 uSlide;
 uniform vec2 uResolution;
@@ -188,7 +195,7 @@ void main() {
 
   if (t <= 0.0) {
     if (uUseBehind > 0.5) {
-      gl_FragColor = vec4(behindPhoto(uv), 1.0);
+      gl_FragColor = vec4(faintBehindPhoto(behindPhoto(uv)), 1.0);
       return;
     }
     if (uRevealBehind > 0.5) {
@@ -206,9 +213,11 @@ void main() {
     return;
   }
 
-  float n = fbm(vec2(uv.y * 5.0 + uTime * 0.55, uTime * 0.42));
-  float grain = noise(uv * 18.0 + uTime * 1.35);
-  float field = computeBurnField(uv, t, aspect, uSpread, uCenterBurn, dir, uTime, uSlide);
+  vec2 centeredUv = (uv - 0.5) * vec2(aspect, 1.0);
+  vec4 burnNoise = computeBurnNoise(uv, centeredUv, aspect, uTime);
+  float n = burnNoise.x;
+  float grain = burnNoise.z;
+  float field = computeBurnField(uv, t, aspect, uSpread, uCenterBurn, dir, uTime, burnNoise);
 
   float pixelSize = 1.0 / uResolution.y;
   float feather = max(pixelSize * 2.5, 0.014);
@@ -265,7 +274,7 @@ void main() {
   vec3 color = burnMix;
 
   if (uUseBehind > 0.5) {
-    vec3 behindColor = behindDisplay(uv, t, aspect, dir, feather);
+    vec3 behindColor = behindDisplay(uv, t, aspect, dir, feather, burnNoise);
     float behindAmt = smoothstep(0.0, 0.32, fromAlpha - edge * 0.3);
     behindAmt = behindAmt * behindAmt * (3.0 - 2.0 * behindAmt);
     color = mix(burnMix, behindColor, behindAmt);

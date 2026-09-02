@@ -13,6 +13,9 @@ node_modules
 logs
 *.log
 
+# Large local 3D assets (not used in production)
+public/archwayold.glb
+
 # Misc
 .DS_Store
 .fleet

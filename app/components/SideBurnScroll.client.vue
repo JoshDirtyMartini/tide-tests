@@ -14,6 +14,10 @@ import {
   WebGLRenderer,
 } from 'three'
 import { SIDE_BURN_FRAGMENT_SHADER, SIDE_BURN_VERTEX_SHADER } from '~/utils/sideBurnShader'
+import gsap from 'gsap'
+import ScrollTrigger from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
 
 const props = defineProps({
   to: {
@@ -44,6 +48,14 @@ const props = defineProps({
     type: Number,
     default: 1.75,
   },
+  behindOpacity: {
+    type: Number,
+    default: 0.08,
+  },
+  sketchOpacity: {
+    type: Number,
+    default: 0.6,
+  },
   revealBehind: {
     type: Boolean,
     default: false,
@@ -63,6 +75,9 @@ const canvasRef = ref(null)
 const isReady = ref(false)
 const loadError = ref('')
 
+const titleRef = ref(null)
+const subtitleRef = ref(null)
+
 const showBehind = computed(() => Boolean(props.behind))
 const useOpaqueBehind = computed(() => showBehind.value)
 const useRevealBehind = computed(() => !showBehind.value && props.revealBehind)
@@ -80,6 +95,7 @@ let behindTexture
 let rafId = null
 let clockStart = 0
 let burnProgress = 0
+let scrollCtx
 
 const loader = new TextureLoader()
 loader.setCrossOrigin('anonymous')
@@ -131,10 +147,10 @@ function renderFrame() {
   renderer.render(scene, camera)
 }
 
+const BURN_MAX_DPR = 1.25
+
 function shouldAnimate() {
-  if (burnProgress > 0.001 && burnProgress < 0.999) return true
-  if (showBehind.value && burnProgress > 0.001) return true
-  return false
+  return burnProgress > 0.001 && burnProgress < 0.999
 }
 
 function tick(now) {
@@ -165,12 +181,53 @@ function resize() {
   if (!renderer || !material) return false
   const size = getSize()
   if (!size) return false
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const dpr = Math.min(window.devicePixelRatio || 1, BURN_MAX_DPR)
   renderer.setPixelRatio(dpr)
   renderer.setSize(size.width, size.height, false)
   material.uniforms.uResolution.value.set(size.width * dpr, size.height * dpr)
   renderFrame()
   return true
+}
+
+function getScrollTriggerTarget() {
+  return rootRef.value?.closest('section') ?? rootRef.value
+}
+
+function setupScrollAnimations() {
+  scrollCtx?.revert()
+
+  const trigger = getScrollTriggerTarget()
+  if (!trigger || !titleRef.value) return
+
+  scrollCtx = gsap.context(() => {
+    gsap.to(titleRef.value, {
+      opacity: 1,
+      ease: 'none',
+      scrollTrigger: {
+        trigger,
+        start: '90% bottom',
+        end: '105% bottom',
+        scrub: true,
+        invalidateOnRefresh: true,
+        // markers: true,
+      },
+    })
+    gsap.to(subtitleRef.value, {
+      opacity: 1,
+      ease: 'none',
+
+      scrollTrigger: {
+        trigger,
+        start: '95% bottom',
+        end: '105% bottom',
+        scrub: true,
+        invalidateOnRefresh: true,
+        // markers: true,
+      },
+    })
+  }, rootRef.value)
+
+  ScrollTrigger.refresh()
 }
 
 function setProgress(value) {
@@ -191,6 +248,12 @@ function setProgress(value) {
   }
 
   renderFrame()
+
+  if (t >= 0.999 || t <= 0.001) {
+    stopBurnLoop()
+  } else {
+    startBurnLoop()
+  }
 }
 
 defineExpose({ setProgress, isReady })
@@ -198,7 +261,15 @@ defineExpose({ setProgress, isReady })
 onMounted(async () => {
   await nextTick()
   await waitForLayout()
+
+
+
+
+
   if (!canvasRef.value || !rootRef.value) return
+
+
+  
 
   const opaqueBehind = useOpaqueBehind.value
   const revealBehind = useRevealBehind.value
@@ -230,6 +301,8 @@ onMounted(async () => {
       uUseBehind: { value: opaqueBehind ? 1 : 0 },
       uSketchLead: { value: props.sketchLead },
       uSketchSpeed: { value: props.sketchSpeed },
+      uSketchOpacity: { value: props.sketchOpacity },
+      uBehindOpacity: { value: props.behindOpacity },
       uTime: { value: 0 },
       uSlide: { value: new Vector2(0, 0) },
       uResolution: { value: new Vector2(1, 1) },
@@ -248,8 +321,15 @@ onMounted(async () => {
   window.addEventListener('resize', resize, { passive: true })
 
   if (typeof ResizeObserver !== 'undefined') {
-    resizeObserver = new ResizeObserver(() => resize())
+    resizeObserver = new ResizeObserver(() => {
+      resize()
+      ScrollTrigger.refresh()
+    })
     resizeObserver.observe(rootRef.value)
+    const scrollTarget = getScrollTriggerTarget()
+    if (scrollTarget && scrollTarget !== rootRef.value) {
+      resizeObserver.observe(scrollTarget)
+    }
   }
 
   try {
@@ -276,17 +356,22 @@ onMounted(async () => {
       material.uniforms.uBehind.value = behindTexture
     }
 
-    isReady.value = true
     setProgress(0)
-    startBurnLoop()
+    await waitForLayout()
+    setupScrollAnimations()
+    isReady.value = true
   } catch (error) {
     console.error('[SideBurnScroll] failed to load textures', error)
     loadError.value = 'Could not load images'
   }
+
+ 
+
 })
 
 onBeforeUnmount(() => {
   disposed = true
+  scrollCtx?.revert()
   stopBurnLoop()
   resizeObserver?.disconnect()
   window.removeEventListener('resize', resize)
@@ -305,6 +390,14 @@ onBeforeUnmount(() => {
     class="absolute inset-0 overflow-hidden"
     :style="{ backgroundColor: showBehind ? '#000' : baseColor }"
   >
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-fit h-fit text-white text-center  z-10">
+
+
+    <h1 ref="titleRef" class="text-[3vw] tracking-widest opacity-0">BESPOKE TITLE</h1>
+    <span ref="subtitleRef" class="underline underline-offset-4 text-[0.7vw] font-thin tracking-widest opacity-0">DISCOVER BESPOKE</span>
+
+
+  </div>
     <img
       v-if="behind && !isReady && !loadError"
       :src="behind"

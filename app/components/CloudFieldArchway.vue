@@ -59,7 +59,7 @@ const SCENE_MODELS = [
     ],
   },
   {
-    src: '/archway.glb',
+    src: '/archway-optimized.glb',
     instances: [
       {
         x: 0,

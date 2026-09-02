@@ -13,6 +13,22 @@ const props = defineProps({
     type: Number,
     default: 0.05,
   },
+  imageScaleStart: {
+    type: Number,
+    default: 0.3,
+  },
+  imageScaleEnd: {
+    type: Number,
+    default: 1.4,
+  },
+  imageParallaxDuration: {
+    type: Number,
+    default: 3,
+  },
+  imageScaleDuration: {
+    type: Number,
+    default: 3.25,
+  },
   sceneText: {
     type: Object,
     default: null,
@@ -31,11 +47,19 @@ const props = defineProps({
   },
   sketchSpeed: {
     type: Number,
-    default: 1.3,
+    default: 1.1,
   },
   sketchLead: {
     type: Number,
-    default: 0.001,
+    default: 0.05,
+  },
+  behindOpacity: {
+    type: Number,
+    default: 0.5,
+  },
+  sketchOpacity: {
+    type: Number,
+    default: 0.6,
   },
 })
 
@@ -73,8 +97,6 @@ async function setupMotion() {
   const nextSection = nextSectionEl.value
   if (!track || !image || !item) return
 
-  const motionDur = 1 - props.motionStart
-
   ctx = gsap.context(() => {
     const tl = gsap.timeline({
       scrollTrigger: {
@@ -89,21 +111,25 @@ async function setupMotion() {
     tl.fromTo(
       image,
       { y: () => window.innerHeight * 1.5 },
-      { y: 0, ease: 'power2.out', duration: 1 },
+      { y: 0, ease: 'power2.out', duration: props.imageParallaxDuration },
       0,
     )
 
     tl.fromTo(
       image,
-      { scale: 0.5 },
-      { scale: 1, ease: 'none', duration: motionDur - 0.32 },
-      props.motionStart + 0.15,
+      { scale: props.imageScaleStart },
+      {
+        scale: props.imageScaleEnd,
+        ease: 'none',
+        duration: props.imageScaleDuration,
+      },
+      props.motionStart,
     )
 
     if (useBurn.value && nextSection) {
       ScrollTrigger.create({
         trigger: nextSection,
-        start: '50% top',
+        start: '60% top',
         end: 'bottom top',
         scrub: true,
         invalidateOnRefresh: true,
@@ -118,7 +144,7 @@ async function setupMotion() {
       tl.fromTo(
         item,
         { opacity: 0.5 },
-        { opacity: 1, ease: 'none', duration: motionDur },
+        { opacity: 1, ease: 'none', duration: props.imageScaleDuration },
         props.motionStart,
       )
     }
@@ -180,7 +206,7 @@ onBeforeUnmount(() => {
 
     <section
       ref="nextSectionEl"
-      class="nextSection relative"
+      class="nextSection relative overflow-x-clip"
       :style="{
         height: trackPx ? `${trackPx}px` : `${minTrack * 100}svh`,
         marginTop: trackPx ? `-${trackPx}px` : `-${minTrack * 100}svh`,
@@ -189,7 +215,7 @@ onBeforeUnmount(() => {
     >
       <div
         ref="imageEl"
-        class="nextSection--image sticky top-0 left-0 w-screen h-screen relative bg-black"
+        class="nextSection--image sticky top-0 left-0 w-screen h-screen relative bg-black overflow-hidden"
       >
         <div ref="imageItemEl" class="nextSection--image-item relative w-full h-full">
           <SideBurnScroll
@@ -201,6 +227,8 @@ onBeforeUnmount(() => {
             :behind="burnBehind"
             :sketch-speed="sketchSpeed"
             :sketch-lead="sketchLead"
+            :behind-opacity="behindOpacity"
+            :sketch-opacity="sketchOpacity"
           />
           <slot v-else name="destination" />
         </div>

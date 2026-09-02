@@ -84,7 +84,7 @@ function resize() {
   if (!renderer || !material) return false
   const size = getSize()
   if (!size) return false
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.25)
   renderer.setPixelRatio(dpr)
   renderer.setSize(size.width, size.height, false)
   material.uniforms.uResolution.value.set(size.width * dpr, size.height * dpr)
@@ -239,6 +239,8 @@ onMounted(async () => {
       uUseBehind: { value: 0 },
       uSketchLead: { value: 0 },
       uSketchSpeed: { value: 1 },
+      uSketchOpacity: { value: 1 },
+      uBehindOpacity: { value: 1 },
       uTime: { value: 0 },
       uSlide: { value: new Vector2(0, 0) },
       uResolution: { value: new Vector2(1, 1) },
