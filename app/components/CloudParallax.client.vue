@@ -12,14 +12,16 @@ defineProps({
   },
 })
 
+const { suspended, reducedEffects } = useArchSceneControl()
+
 const enabled = ref(false)
-const dpr = ref([1, 1.5])
+const dpr = ref(1)
 
 onMounted(() => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const coarsePointer = window.matchMedia('(pointer: coarse)').matches
 
-  dpr.value = coarsePointer ? 1 : [1, 1.5]
+  dpr.value = coarsePointer || reducedEffects.value ? 1 : [1, 1.25]
 
   if (reducedMotion) return
 
@@ -39,9 +41,10 @@ onMounted(() => {
     :dpr="dpr"
     :tone-mapping="NoToneMapping"
     power-preference="low-power"
-    render-mode="always"
+    render-mode="on-demand"
     window-size
     class="cloud-canvas"
+    :class="{ 'cloud-canvas--suspended': suspended }"
   >
     <TresPerspectiveCamera :position="[0, 0, 12]" :fov="20" />
     <CloudField v-if="!archway" />
@@ -56,5 +59,9 @@ onMounted(() => {
   inset: 0;
   z-index: 1;
   pointer-events: none;
+}
+
+.cloud-canvas--suspended {
+  visibility: hidden;
 }
 </style>

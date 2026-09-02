@@ -9,15 +9,12 @@ import {
   Scene,
   ShaderMaterial,
   SRGBColorSpace,
-  TextureLoader,
   Vector2,
   WebGLRenderer,
 } from 'three'
 import { SIDE_BURN_FRAGMENT_SHADER, SIDE_BURN_VERTEX_SHADER } from '~/utils/sideBurnShader'
-import gsap from 'gsap'
-import ScrollTrigger from 'gsap/ScrollTrigger'
-
-gsap.registerPlugin(ScrollTrigger)
+import { collectScrollRevealAnimations, useScrollReveal } from '~/composables/useScrollReveal'
+import { getCachedTexture, preloadTexture } from '~/utils/bespokeAssetCache'
 
 const props = defineProps({
   to: {
@@ -72,15 +69,15 @@ const props = defineProps({
 
 const rootRef = ref(null)
 const canvasRef = ref(null)
+const overlayRef = ref(null)
 const isReady = ref(false)
 const loadError = ref('')
-
-const titleRef = ref(null)
-const subtitleRef = ref(null)
 
 const showBehind = computed(() => Boolean(props.behind))
 const useOpaqueBehind = computed(() => showBehind.value)
 const useRevealBehind = computed(() => !showBehind.value && props.revealBehind)
+
+const scrollReveal = useScrollReveal(rootRef)
 
 let renderer
 let scene
@@ -95,10 +92,6 @@ let behindTexture
 let rafId = null
 let clockStart = 0
 let burnProgress = 0
-let scrollCtx
-
-const loader = new TextureLoader()
-loader.setCrossOrigin('anonymous')
 
 function createSolidTexture(hex) {
   const color = new Color(hex)
@@ -120,9 +113,7 @@ function createPlaceholderTexture() {
 
 async function loadFromTexture() {
   if (props.from) {
-    const texture = await loader.loadAsync(props.from)
-    texture.colorSpace = SRGBColorSpace
-    return texture
+    return getCachedTexture(props.from) ?? preloadTexture(props.from)
   }
   return createSolidTexture(props.baseColor)
 }
@@ -189,45 +180,15 @@ function resize() {
   return true
 }
 
-function getScrollTriggerTarget() {
-  return rootRef.value?.closest('section') ?? rootRef.value
+function getRevealAnimations() {
+  return collectScrollRevealAnimations(overlayRef.value)
 }
 
-function setupScrollAnimations() {
-  scrollCtx?.revert()
-
-  const trigger = getScrollTriggerTarget()
-  if (!trigger || !titleRef.value) return
-
-  scrollCtx = gsap.context(() => {
-    gsap.to(titleRef.value, {
-      opacity: 1,
-      ease: 'none',
-      scrollTrigger: {
-        trigger,
-        start: '90% bottom',
-        end: '105% bottom',
-        scrub: true,
-        invalidateOnRefresh: true,
-        // markers: true,
-      },
-    })
-    gsap.to(subtitleRef.value, {
-      opacity: 1,
-      ease: 'none',
-
-      scrollTrigger: {
-        trigger,
-        start: '95% bottom',
-        end: '105% bottom',
-        scrub: true,
-        invalidateOnRefresh: true,
-        // markers: true,
-      },
-    })
-  }, rootRef.value)
-
-  ScrollTrigger.refresh()
+async function setupScrollReveal() {
+  const animations = getRevealAnimations()
+  if (!animations.length) return
+  await scrollReveal.setup(animations)
+  scrollReveal.observeResize()
 }
 
 function setProgress(value) {
@@ -256,20 +217,13 @@ function setProgress(value) {
   }
 }
 
-defineExpose({ setProgress, isReady })
+defineExpose({ setProgress, isReady, refreshScroll: scrollReveal.refresh })
 
 onMounted(async () => {
   await nextTick()
   await waitForLayout()
 
-
-
-
-
   if (!canvasRef.value || !rootRef.value) return
-
-
-  
 
   const opaqueBehind = useOpaqueBehind.value
   const revealBehind = useRevealBehind.value
@@ -321,24 +275,17 @@ onMounted(async () => {
   window.addEventListener('resize', resize, { passive: true })
 
   if (typeof ResizeObserver !== 'undefined') {
-    resizeObserver = new ResizeObserver(() => {
-      resize()
-      ScrollTrigger.refresh()
-    })
+    resizeObserver = new ResizeObserver(() => resize())
     resizeObserver.observe(rootRef.value)
-    const scrollTarget = getScrollTriggerTarget()
-    if (scrollTarget && scrollTarget !== rootRef.value) {
-      resizeObserver.observe(scrollTarget)
-    }
   }
 
   try {
     const loads = [
       loadFromTexture(),
-      loader.loadAsync(props.to),
+      getCachedTexture(props.to) ?? preloadTexture(props.to),
     ]
     if (showBehind.value) {
-      loads.push(loader.loadAsync(props.behind))
+      loads.push(getCachedTexture(props.behind) ?? preloadTexture(props.behind))
     }
 
     const textures = await Promise.all(loads)
@@ -357,21 +304,17 @@ onMounted(async () => {
     }
 
     setProgress(0)
-    await waitForLayout()
-    setupScrollAnimations()
+    await setupScrollReveal()
     isReady.value = true
   } catch (error) {
     console.error('[SideBurnScroll] failed to load textures', error)
     loadError.value = 'Could not load images'
   }
-
- 
-
 })
 
 onBeforeUnmount(() => {
   disposed = true
-  scrollCtx?.revert()
+  scrollReveal.cleanup()
   stopBurnLoop()
   resizeObserver?.disconnect()
   window.removeEventListener('resize', resize)
@@ -390,39 +333,23 @@ onBeforeUnmount(() => {
     class="absolute inset-0 overflow-hidden"
     :style="{ backgroundColor: showBehind ? '#000' : baseColor }"
   >
-  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-fit h-fit text-white text-center  z-10">
-
-
-    <h1 ref="titleRef" class="text-[3vw] tracking-widest opacity-0">BESPOKE TITLE</h1>
-    <span ref="subtitleRef" class="underline underline-offset-4 text-[0.7vw] font-thin tracking-widest opacity-0">DISCOVER BESPOKE</span>
-
-
-  </div>
-    <img
-      v-if="behind && !isReady && !loadError"
-      :src="behind"
-      alt=""
-      class="absolute inset-0 w-full h-full object-cover grayscale "
-      draggable="false"
+    <div
+      v-if="$slots.default"
+      ref="overlayRef"
+      class="absolute top-1/2 left-1/2 z-10 w-fit -translate-x-1/2 -translate-y-1/2 text-center text-white"
     >
-
-    <img
-      v-if="!isReady && !loadError && from"
-      :src="from"
-      alt=""
-      class="absolute inset-0 w-full h-full object-cover grayscale "
-      draggable="false"
-    >
+      <slot />
+    </div>
 
     <canvas
       ref="canvasRef"
-      class="absolute inset-0 block w-full h-full"
+      class="absolute inset-0 block h-full w-full"
       :class="{ 'opacity-0': !isReady, 'opacity-100': isReady }"
     />
 
     <p
       v-if="loadError"
-      class="absolute inset-0 flex items-center justify-center text-white/70 text-sm"
+      class="absolute inset-0 flex items-center justify-center text-sm text-white/70"
     >
       {{ loadError }}
     </p>

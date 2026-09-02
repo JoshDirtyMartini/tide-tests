@@ -66,6 +66,7 @@ const props = defineProps({
 const useBurn = computed(() => Boolean(props.burnTo))
 
 provideArchSceneText(toRef(() => props.sceneText))
+const { suspended: sceneSuspended } = provideArchSceneControl()
 
 const root = ref(null)
 const trackEl = ref(null)
@@ -135,9 +136,11 @@ async function setupMotion() {
         invalidateOnRefresh: true,
         onUpdate: (self) => {
           burnScrollRef.value?.setProgress(self.progress)
+          sceneSuspended.value = self.progress > 0.4
         },
         onRefresh: (self) => {
           burnScrollRef.value?.setProgress(self.progress)
+          sceneSuspended.value = self.progress > 0.4
         },
       })
     } else if (!useBurn.value) {
@@ -229,7 +232,9 @@ onBeforeUnmount(() => {
             :sketch-lead="sketchLead"
             :behind-opacity="behindOpacity"
             :sketch-opacity="sketchOpacity"
-          />
+          >
+            <slot name="burn-overlay" />
+          </SideBurnScroll>
           <slot v-else name="destination" />
         </div>
       </div>
