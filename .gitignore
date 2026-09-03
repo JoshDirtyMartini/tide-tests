@@ -15,6 +15,7 @@ logs
 
 # Large local 3D assets (not used in production)
 public/archwayold.glb
+public/trees.glb
 
 # Misc
 .DS_Store
