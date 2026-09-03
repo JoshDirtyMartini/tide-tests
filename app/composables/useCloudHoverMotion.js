@@ -73,7 +73,6 @@ export function useCloudHoverMotion(pointer, {
 
     if (speed > 0.02) {
       const dist = Math.hypot(x - trail[0].x, y - trail[0].y)
-      // Faster motion deposits points more often so the stroke lengthens.
       const step = Math.max(0.004, trailMinStep - Math.min(speed, 1.5) * 0.003)
       if (dist >= step) {
         pushTrail(x, y)
@@ -85,7 +84,6 @@ export function useCloudHoverMotion(pointer, {
     } else {
       trail[0].x = x
       trail[0].y = y
-      // Idle: older points ease toward the tip so the stroke dissolves.
       const decay = 1 - Math.exp(-delta / trailDecay)
       for (let i = 1; i < trailSize; i++) {
         const weight = decay * (0.35 + i * 0.08)
@@ -122,7 +120,6 @@ export function useCloudHoverMotion(pointer, {
       resetTrail(pointer.x, pointer.y)
     }
     if (fluidHover && active && !active.value && wasActive) {
-      // Keep points but let updateTrail collapse them.
     }
     wasActive = Boolean(active?.value)
 
@@ -193,7 +190,6 @@ export function useCloudHoverMotion(pointer, {
       delta,
       isActive: Boolean(active?.value),
     })
-    // Encode trail opacity in motion so the stroke can linger while fading.
     if (fluidHover && trailStrength > waterMotion.value) {
       waterMotion.value = Math.max(waterMotion.value, trailStrength * 0.4)
     }

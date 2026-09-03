@@ -84,11 +84,9 @@ float cursorTrailInfluence(vec2 screenUv) {
   float prevAmp = 0.0;
 
   for (int i = 0; i < 16; i++) {
-    // Trail stores NDC (-1..1); convert to the same 0..1 space as screenUv.
     vec2 pt = uTrail[i] * 0.5 + 0.5;
     pt.x *= aspect;
     float age = float(i) / 15.0;
-    // Soft tip, then a thinner decaying stroke along the path.
     float radius = mix(0.28, 0.08, age);
     float amp = pow(1.0 - age, 1.35);
 
@@ -122,7 +120,6 @@ float cursorInfluenceFluid(vec2 screenUv, vec2 mouseUv, vec2 velocity) {
   float n2 = valueNoise(delta * 13.0 - uTime * 0.06);
   float edgeWarp = (n - 0.5) * 0.05 + (n2 - 0.5) * 0.025;
 
-  // Path stroke is the main shape — no velocity wake protrusion.
   float stroke = cursorTrailInfluence(screenUv);
   stroke = saturate(stroke + edgeWarp * stroke);
 
@@ -130,7 +127,6 @@ float cursorInfluenceFluid(vec2 screenUv, vec2 mouseUv, vec2 velocity) {
     return 0.0;
   }
 
-  // Soft tip while holding still after a move.
   float tip = 0.0;
   if (speed <= 0.02 && uMotion > 0.05) {
     tip = smoothstep(0.3, 0.0, length(delta) + edgeWarp * 0.4);
@@ -138,7 +134,6 @@ float cursorInfluenceFluid(vec2 screenUv, vec2 mouseUv, vec2 velocity) {
 
   float influence = max(stroke, tip * 0.85);
   influence = influence * influence * (3.0 - 2.0 * influence);
-  // Ease the last of the fade so it dissolves instead of cutting off.
   float fade = smoothstep(0.0, 0.18, uMotion);
   return influence * fade;
 }

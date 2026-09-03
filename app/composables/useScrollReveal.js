@@ -18,13 +18,6 @@ function resolveTrigger(rootEl, trigger) {
   return rootEl.closest('section') ?? rootEl
 }
 
-/**
- * Scroll-linked opacity reveals. Pass element refs or `[data-scroll-reveal]` nodes.
- *
- * @param {import('vue').Ref<HTMLElement|null>} rootRef
- * @param {object} [options]
- * @param {string|Element|null} [options.trigger] - selector, element, or null for nearest section
- */
 export function useScrollReveal(rootRef, options = {}) {
   let ctx
   let resizeObserver
@@ -85,9 +78,6 @@ export function useScrollReveal(rootRef, options = {}) {
   return { setup, observeResize, cleanup, refresh }
 }
 
-/**
- * Build reveal animations from `[data-scroll-reveal]` children or explicit refs.
- */
 export function collectScrollRevealAnimations(container, refs = {}) {
   if (!container) return []
 

@@ -31,7 +31,6 @@ float fbm(vec2 p) {
   return v;
 }
 
-// n, n2, grain, edgeWarpNoise
 vec4 computeBurnNoise(vec2 uv, vec2 centeredUv, float aspect, float uTime) {
   float n = fbm(vec2(uv.y * 5.0 + uTime * 0.55, uTime * 0.42));
   float n2 = fbm(centeredUv * 9.0 + uTime * 0.28);
@@ -110,7 +109,6 @@ vec3 sketchColor(vec2 uv, vec3 photo) {
   float l = sketchLuminance(photo);
   float tone = 1.0 - l;
 
-  // Bold contour strokes
   float edge = length(vec2(dFdx(l), dFdy(l)));
   edge = smoothstep(0.004, 0.07, edge);
 
@@ -118,11 +116,9 @@ vec3 sketchColor(vec2 uv, vec3 photo) {
   vec3 ink = vec3(0.11, 0.09, 0.07);
   vec3 graphite = vec3(0.52, 0.48, 0.44);
 
-  // Stepped pencil shading — fills midtones, not just outlines
   float shade = floor(tone * 7.0) / 7.0;
   shade = smoothstep(0.08, 0.92, shade) * 0.62;
 
-  // Soft paper grain in shaded areas
   float grain = (noise(uv * 22.0 + uTime * 0.18) - 0.5) * 0.07;
   shade = clamp(shade + grain * smoothstep(0.15, 0.75, tone), 0.0, 1.0);
 

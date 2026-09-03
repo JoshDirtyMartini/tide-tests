@@ -179,7 +179,6 @@ const CLOUD_VERTEX_DISPLACE = `
       ? cursorInfluence(screenUv, mouseUv, uVelocity)
       : 0.0;
     float height = reliefHeight(worldPos);
-    // Camera-facing world offset → object space (shared verts stay welded)
     float amt = height * influence * 0.14;
     vec3 worldDisp = normalize(cameraPosition - worldPos) * amt;
     mat3 linear = mat3(modelMatrix);
@@ -221,7 +220,6 @@ const CLOUD_MAP_FRAGMENT = `
   float influence = uMotion > 0.001
     ? cursorInfluence(screenUv, mouseUv, uVelocity)
     : 0.0;
-  // Prefer fragment influence (higher res) but keep vertex hover as a floor
   influence = max(influence, vHover);
   float appear = appearMask(screenUv);
 
@@ -229,12 +227,10 @@ const CLOUD_MAP_FRAGMENT = `
   diffuseColor *= sampledDiffuseColor;
 
   if (influence > 0.001) {
-    // Height from world pos (not flat-interpolated verts) for smoother relief
     float h = reliefHeight(vCloudWorldPos);
     float hx = dFdx(h);
     float hy = dFdy(h);
     vec3 bumpN = normalize(vec3(-hx * 12.0, -hy * 12.0, 1.0));
-    // Blend toward flat to avoid hard triangle-edge specular cracks
     vec3 fakeN = normalize(mix(vec3(0.0, 0.0, 1.0), bumpN, 0.65));
 
     vec3 lightDir = normalize(vec3(0.55, 0.8, 0.45));
@@ -242,7 +238,6 @@ const CLOUD_MAP_FRAGMENT = `
     vec3 viewDir = normalize(vec3((screenUv - 0.5) * vec2(-1.5, 1.5), 1.0));
     vec3 R = reflect(-viewDir, fakeN);
 
-    // Fake environment reflection (metals are mostly reflection, not diffuse)
     float envY = R.y * 0.5 + 0.5;
     vec3 env = mix(vec3(0.05, 0.03, 0.015), vec3(0.9, 0.75, 0.4), envY);
     env += vec3(1.0, 0.95, 0.82) * pow(saturate(R.y + 0.05), 10.0);
@@ -256,7 +251,6 @@ const CLOUD_MAP_FRAGMENT = `
     float ndh = saturate(dot(fakeN, H));
     float ndh2 = saturate(dot(fakeN, normalize(lightDir2 + viewDir)));
 
-    // Gold conductor F0 — colored reflectance
     vec3 F0 = vec3(1.0, 0.71, 0.29);
     float fresnel = pow(1.0 - ndv, 5.0);
     vec3 F = mix(F0, vec3(1.0, 0.98, 0.92), fresnel);
@@ -271,13 +265,11 @@ const CLOUD_MAP_FRAGMENT = `
     float specBroad = pow(ndh2, mix(70.0, 18.0, roughness)) * ndl2 * 1.4;
     float hot = pow(ndh, 120.0) * 2.6;
 
-    // Near-zero diffuse: reflection + specular lobes only
     vec3 metal = env * F0 * (0.45 + ndl * 0.55 + h * 0.15);
     metal += F * (specSharp + specBroad);
     metal += vec3(1.0, 0.93, 0.72) * hot;
     metal += F0 * fresnel * 0.4;
 
-    // Original map only modulates micro-contrast, not albedo
     float detail = dot(sampledDiffuseColor.rgb, vec3(0.299, 0.587, 0.114));
     metal *= mix(0.88, 1.18, detail);
 
