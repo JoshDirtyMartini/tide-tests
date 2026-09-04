@@ -7,7 +7,7 @@ gsap.registerPlugin(ScrollTrigger)
 const props = defineProps({
   minTrack: {
     type: Number,
-    default: 8,
+    default: 6,
   },
   motionStart: {
     type: Number,
