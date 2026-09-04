@@ -9,10 +9,6 @@
   <ArchPortal
     v-else
     :scene-text="sceneText"
-    :burn-to="burnTo"
-    :burn-behind="burnBehind"
-    :behind-opacity="0.25"
-    :sketch-opacity="0.6"
   >
     <template #content>
       <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]" />
@@ -20,23 +16,12 @@
       <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]" />
     </template>
 
-    <template #burn-overlay>
-      <h1
-        class="text-[3vw] tracking-widest opacity-0"
-        data-scroll-reveal
-        data-start="90% bottom"
-        data-end="105% bottom"
+    <template #destination>
+      <img
+        :src="destinationImage"
+        alt=""
+        class="w-full h-full object-cover"
       >
-        BESPOKE TITLE
-      </h1>
-      <span
-        class="text-[0.7vw] font-thin tracking-widest underline underline-offset-4 opacity-0"
-        data-scroll-reveal
-        data-start="95% bottom"
-        data-end="105% bottom"
-      >
-        DISCOVER BESPOKE
-      </span>
     </template>
   </ArchPortal>
 </template>
@@ -57,13 +42,12 @@ const sceneText = {
   color: '#C29A65',
 }
 
-const burnTo = '/placeholder.webp'
-const burnBehind = '/placeholder.webp'
+const destinationImage = '/placeholder.webp'
 
 const ready = ref(false)
 
 onMounted(async () => {
-  await preloadBespokeExperience({ sceneText, burnTo, burnBehind })
+  await preloadBespokeExperience({ sceneText, destinationImage })
   ready.value = true
 })
 </script>

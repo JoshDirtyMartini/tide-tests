@@ -47,12 +47,14 @@ export function getCachedTexture(src) {
 
 export async function preloadBespokeExperience({
   sceneText,
-  burnTo,
-  burnBehind,
+  destinationImage = '',
+  burnTo = '',
+  burnBehind = '',
   burnFrom = '',
-}) {
+} = {}) {
   await Promise.all([
     ...BESPOKE_SCENE_GLBS.map(preloadGltf),
+    preloadTexture(destinationImage),
     preloadTexture(burnTo),
     preloadTexture(burnBehind),
     preloadTexture(burnFrom),

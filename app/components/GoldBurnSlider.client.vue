@@ -94,7 +94,7 @@ float fbm(vec2 p) {
   for (int i = 0; i < 2; i++) {
     v += a * valueNoise(p);
     p = p * 2.11 + vec2(17.2, 9.1);
-    a *= 0.5;
+    a *= 0.5;c
   }
   return v;
 }
