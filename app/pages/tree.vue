@@ -27,7 +27,7 @@ onMounted(() => {
       v-else
       src="/tree.png"
       depth-src="/tree-depth.png"
-      :depth-strength="1"
+      :depth-strength="0.4"
       @failed="webGLFailed = true"
     />
   </div>

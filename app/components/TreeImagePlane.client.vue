@@ -58,14 +58,16 @@ const {
 } = useCloudHoverMotion(pointer, {
   active: isHovering,
   fluidHover: true,
-  followEase: 0.09,
-  velocityEase: 0.05,
-  velocityDecay: 0.96,
-  motionFadeIn: 0.1,
-  motionFadeOut: 0.38,
+  followEase: 0.12,
+  velocityEase: 0.22,
+  velocityDecay: 0.44,
+  motionFadeIn: 0.05,
+  motionFadeOut: 0.35,
   stillDelay: 0,
-  trailMinStep: 0.007,
-  trailDecay: 0.28,
+  velocityFullSpeed: 2.4,
+  velocityPower: 1.6,
+  trailMinStep: 0.005,
+  trailDecay: 1.5,
 })
 
 function requestFrame(frames = 1) {

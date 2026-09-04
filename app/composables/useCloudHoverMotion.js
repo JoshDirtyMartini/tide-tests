@@ -10,6 +10,10 @@ export function useCloudHoverMotion(pointer, {
   motionFadeIn = 0.08,
   motionFadeOut = 0.85,
   stillDelay = 0,
+
+  velocityFullSpeed = 0.55,
+
+  velocityPower = 1,
   trailSize = 16,
   trailMinStep = 0.008,
   trailDecay = 0.38,
@@ -55,42 +59,44 @@ export function useCloudHoverMotion(pointer, {
     }
   }
 
-  function updateTrail({ x, y, speed, delta, isActive }) {
+  function updateTrail({ x, y, speed, delta, isActive, paintStrength = 0 }) {
     if (!fluidHover) return
 
     if (!isActive) {
       trail[0].x = x
       trail[0].y = y
-      const collapse = 1 - Math.exp(-delta / 0.14)
+      const collapse = 1 - Math.exp(-delta / 0.28)
       for (let i = 1; i < trailSize; i++) {
-        trail[i].x += (x - trail[i].x) * collapse * (0.7 + i * 0.08)
-        trail[i].y += (y - trail[i].y) * collapse * (0.7 + i * 0.08)
+        trail[i].x += (x - trail[i].x) * collapse * (0.55 + i * 0.06)
+        trail[i].y += (y - trail[i].y) * collapse * (0.55 + i * 0.06)
       }
-      trailStrength = Math.max(0, trailStrength - delta * 3.5)
+      trailStrength = Math.max(0, trailStrength - delta * 1.6)
       syncTrailUniforms()
       return
     }
 
-    if (speed > 0.02) {
+    // Keep laying stroke while moving; don't collapse the ribbon into a tip.
+    if (speed > 0.012) {
       const dist = Math.hypot(x - trail[0].x, y - trail[0].y)
-      const step = Math.max(0.004, trailMinStep - Math.min(speed, 1.5) * 0.003)
+      const step = Math.max(0.0035, trailMinStep - Math.min(speed, 1.5) * 0.0025)
       if (dist >= step) {
         pushTrail(x, y)
       } else {
         trail[0].x = x
         trail[0].y = y
       }
-      trailStrength = Math.min(1, trailStrength + delta * 4.5)
+      trailStrength = Math.min(1, Math.max(trailStrength, paintStrength) + delta * 2.2)
     } else {
+      // Soft hold: tip follows cursor, body stays so the stroke can fade out.
       trail[0].x = x
       trail[0].y = y
-      const decay = 1 - Math.exp(-delta / trailDecay)
+      const decay = 1 - Math.exp(-delta / Math.max(trailDecay, 0.05))
       for (let i = 1; i < trailSize; i++) {
-        const weight = decay * (0.35 + i * 0.08)
+        const weight = decay * (0.08 + i * 0.02)
         trail[i].x += (x - trail[i].x) * weight
         trail[i].y += (y - trail[i].y) * weight
       }
-      trailStrength = Math.max(0, trailStrength - delta * 2.2)
+      trailStrength = Math.max(0, trailStrength - delta * 0.85)
     }
 
     syncTrailUniforms()
@@ -136,17 +142,20 @@ export function useCloudHoverMotion(pointer, {
     lastWaterY = waterFollow.y
 
     const speed = Math.hypot(waterVelocity.value.x, waterVelocity.value.y)
-    const motionFromSpeed = Math.min(1, Math.max(0, (speed - 0.04) / 0.45))
-    const moving = speed > 0.02
+    // Strength tracks speed; high velocityFullSpeed / velocityPower keeps full opacity rare.
+    const normalized = Math.min(1, Math.max(0, speed / Math.max(velocityFullSpeed, 0.001)))
+    const motionFromSpeed = Math.pow(normalized, Math.max(velocityPower, 0.01))
+    const moving = speed > 0.015
 
     if (moving) {
       stillTime = 0
-      heldMotion = Math.max(heldMotion, motionFromSpeed, waterMotion.value)
+      heldMotion = Math.max(heldMotion * 0.92, motionFromSpeed)
     } else {
       stillTime += delta
+      heldMotion = Math.max(0, heldMotion - delta * 0.55)
     }
 
-    if (fluidHover && active?.value && speed < 0.02 && stillTime >= stillDelay) {
+    if (fluidHover && active?.value && speed < 0.015 && stillTime >= stillDelay) {
       const decay = 1 - Math.exp(-delta / 0.35)
       waterVelocity.value.x *= 1 - decay * (1 - velocityDecay)
       waterVelocity.value.y *= 1 - decay * (1 - velocityDecay)
@@ -166,19 +175,16 @@ export function useCloudHoverMotion(pointer, {
         target = 0
       }
     } else if (active) {
-      target = active.value ? Math.max(motionFromSpeed, 1) : 0
+      target = active.value ? motionFromSpeed : 0
     } else {
       target = motionFromSpeed
     }
 
+    // Track velocity closely so intensity mirrors current speed.
     const blend = target > waterMotion.value
       ? 1 - Math.exp(-delta / motionFadeIn)
       : 1 - Math.exp(-delta / motionFadeOut)
     waterMotion.value += (target - waterMotion.value) * blend
-
-    if (target <= 0.01) {
-      heldMotion = 0
-    }
 
     waterMouse.value.set(waterFollow.x, waterFollow.y)
     updateTrail({
@@ -187,9 +193,14 @@ export function useCloudHoverMotion(pointer, {
       speed,
       delta,
       isActive: Boolean(active?.value),
+      paintStrength: motionFromSpeed,
     })
-    if (fluidHover && trailStrength > waterMotion.value) {
-      waterMotion.value = Math.max(waterMotion.value, trailStrength * 0.4)
+    // Let the painted stroke linger/fade instead of snapping off with velocity.
+    if (fluidHover && trailStrength > 0.01) {
+      const trailFade = trailStrength * Math.max(heldMotion, motionFromSpeed, waterMotion.value)
+      waterMotion.value = Math.max(waterMotion.value, trailFade)
+    } else if (target <= 0.01 && trailStrength <= 0.01) {
+      heldMotion = 0
     }
     waterResolution.value.set(renderer.domElement.width, renderer.domElement.height)
   }

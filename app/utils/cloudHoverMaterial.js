@@ -95,8 +95,9 @@ float cursorTrailInfluence(vec2 screenUv) {
     vec2 pt = uTrail[i] * 0.5 + 0.5;
     pt.x *= aspect;
     float age = float(i) / 15.0;
-    float radius = mix(0.28, 0.08, age);
-    float amp = pow(1.0 - age, 1.35);
+    // Wider stroke so the reveal reads larger while still trailing.
+    float radius = mix(0.5, 0.16, age);
+    float amp = pow(1.0 - age, 0.9);
 
     if (i == 0) {
       influence = max(influence, smoothstep(radius, 0.0, length(p - pt)) * amp);
@@ -120,10 +121,6 @@ float cursorInfluenceFluid(vec2 screenUv, vec2 mouseUv, vec2 velocity) {
   vec2 delta = screenUv - mouseUv;
   delta.x *= aspect;
 
-  vec2 vel = velocity;
-  vel.x *= aspect;
-  float speed = length(vel);
-
   float n = valueNoise(delta * 7.5 + uTime * 0.09);
   float n2 = valueNoise(delta * 13.0 - uTime * 0.06);
   float edgeWarp = (n - 0.5) * 0.05 + (n2 - 0.5) * 0.025;
@@ -131,19 +128,9 @@ float cursorInfluenceFluid(vec2 screenUv, vec2 mouseUv, vec2 velocity) {
   float stroke = cursorTrailInfluence(screenUv);
   stroke = saturate(stroke + edgeWarp * stroke);
 
-  if (uMotion <= 0.001) {
-    return 0.0;
-  }
-
-  float tip = 0.0;
-  if (speed <= 0.02 && uMotion > 0.05) {
-    tip = smoothstep(0.3, 0.0, length(delta) + edgeWarp * 0.4);
-  }
-
-  float influence = max(stroke, tip * 0.85);
-  influence = influence * influence * (3.0 - 2.0 * influence);
-  float fade = smoothstep(0.0, 0.18, uMotion);
-  return influence * fade;
+  // Strength tracks velocity (uMotion) linearly — slow = weak, fast = strong.
+  float influence = stroke * stroke * (3.0 - 2.0 * stroke);
+  return influence * saturate(uMotion);
 }
 
 float cursorInfluence(vec2 screenUv, vec2 mouseUv, vec2 velocity) {
@@ -368,7 +355,7 @@ export function applyCloudHoverMaterial(sourceMat, {
     toneMapped: false,
   })
 
-  next.customProgramCacheKey = () => `cloud-basic-gold-v23-d${useDepthMap}-f${fluidCursor ? 1 : 0}-o${opaque ? 1 : 0}-b${brightness}-h${hoverOpacity}`
+  next.customProgramCacheKey = () => `cloud-basic-gold-v27-d${useDepthMap}-f${fluidCursor ? 1 : 0}-o${opaque ? 1 : 0}-b${brightness}-h${hoverOpacity}`
   next.onBeforeCompile = (shader) => {
     shader.uniforms.uBaseOpacity = { value: opacity }
     shader.uniforms.uHoverOpacity = { value: hoverOpacity }
