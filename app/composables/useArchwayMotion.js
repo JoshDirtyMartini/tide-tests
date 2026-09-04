@@ -44,7 +44,7 @@ function readScrollProgress() {
   if (scrollTriggerEl) {
     const rect = scrollTriggerEl.getBoundingClientRect()
     const range = window.innerHeight + rect.height
-    targetScroll = range > 0 ? clamp01((window.innerHeight - rect.top) / range) : 0
+    targetScroll = range > 0 ? clamp01((window.innerHeight / 2 - rect.top) / range) : 0
     return
   }
 
