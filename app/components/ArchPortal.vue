@@ -7,7 +7,7 @@ gsap.registerPlugin(ScrollTrigger)
 const props = defineProps({
   minTrack: {
     type: Number,
-    default: 6,
+    default: 8,
   },
   motionStart: {
     type: Number,
@@ -85,6 +85,7 @@ function syncTrack() {
   const contentH = contentEl.value?.scrollHeight ?? 0
   const minH = props.minTrack * window.innerHeight
   trackPx.value = Math.max(contentH, minH)
+  refreshArchwayScrollProgress()
 }
 
 async function setupMotion() {
@@ -158,6 +159,7 @@ async function setupMotion() {
 
 onMounted(async () => {
   await nextTick()
+  setArchwayScrollTrigger(root.value)
   await setupMotion()
 
   watch(
@@ -189,6 +191,7 @@ onBeforeUnmount(() => {
   clearTimeout(resizeTimer)
   resizeObserver?.disconnect()
   window.removeEventListener('resize', setupMotion)
+  setArchwayScrollTrigger(null)
   ctx?.revert()
 })
 </script>

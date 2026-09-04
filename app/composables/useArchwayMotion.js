@@ -32,12 +32,22 @@ let hasPointer = false
 let refCount = 0
 let renderSyncRefCount = 0
 let rafId = null
+let scrollTriggerEl = null
 
 const tmpCamera = new PerspectiveCamera()
 const tmpVector = new Vector3()
 
+
 function readScrollProgress() {
   if (typeof window === 'undefined') return
+
+  if (scrollTriggerEl) {
+    const rect = scrollTriggerEl.getBoundingClientRect()
+    const range = window.innerHeight + rect.height
+    targetScroll = range > 0 ? clamp01((window.innerHeight - rect.top) / range) : 0
+    return
+  }
+
   const max = document.documentElement.scrollHeight - window.innerHeight
   targetScroll = max > 0 ? window.scrollY / max : 0
 }
@@ -158,6 +168,15 @@ function projectAnchor(config) {
 
 export function setArchwayCamera(camera) {
   liveCamera.value = camera
+}
+
+export function setArchwayScrollTrigger(el) {
+  scrollTriggerEl = el ?? null
+  readScrollProgress()
+}
+
+export function refreshArchwayScrollProgress() {
+  readScrollProgress()
 }
 
 export function registerArchwayRenderSync() {
