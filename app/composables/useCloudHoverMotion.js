@@ -119,8 +119,6 @@ export function useCloudHoverMotion(pointer, {
       heldMotion = 0
       resetTrail(pointer.x, pointer.y)
     }
-    if (fluidHover && active && !active.value && wasActive) {
-    }
     wasActive = Boolean(active?.value)
 
     waterFollow.x += (pointer.x - waterFollow.x) * followEase

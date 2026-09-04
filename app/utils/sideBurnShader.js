@@ -31,6 +31,7 @@ float fbm(vec2 p) {
   return v;
 }
 
+// Channels: n, n2, grain, edgeWarpNoise
 vec4 computeBurnNoise(vec2 uv, vec2 centeredUv, float aspect, float uTime) {
   float n = fbm(vec2(uv.y * 5.0 + uTime * 0.55, uTime * 0.42));
   float n2 = fbm(centeredUv * 9.0 + uTime * 0.28);

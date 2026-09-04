@@ -1,4 +1,12 @@
-import { DataTexture, DoubleSide, MeshBasicMaterial, RedFormat, SRGBColorSpace, UnsignedByteType, Vector2 } from 'three'
+import {
+  DataTexture,
+  DoubleSide,
+  MeshBasicMaterial,
+  RedFormat,
+  SRGBColorSpace,
+  UnsignedByteType,
+  Vector2,
+} from 'three'
 
 let fallbackDepthTexture
 

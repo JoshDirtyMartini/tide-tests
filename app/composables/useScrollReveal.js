@@ -18,6 +18,7 @@ function resolveTrigger(rootEl, trigger) {
   return rootEl.closest('section') ?? rootEl
 }
 
+/** Scroll-linked opacity reveals for `[data-scroll-reveal]` nodes or explicit refs. */
 export function useScrollReveal(rootRef, options = {}) {
   let ctx
   let resizeObserver
