@@ -1,5 +1,3 @@
-
-
 <script setup>
 import { preloadBespokeExperience } from '~/utils/bespokeAssetCache'
 

@@ -1,3 +1,20 @@
+<script setup>
+const useWebGL = ref(false)
+const webGLFailed = ref(false)
+
+const showFallback = computed(() => !useWebGL.value || webGLFailed.value)
+
+onMounted(() => {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (reducedMotion) return
+
+  const probe = document.createElement('canvas')
+  const gl = probe.getContext('webgl2') || probe.getContext('webgl')
+  useWebGL.value = Boolean(gl)
+  gl?.getExtension('WEBGL_lose_context')?.loseContext()
+})
+</script>
+
 <template>
   <div class="tree-page">
     <img
@@ -16,22 +33,7 @@
   </div>
 </template>
 
-<script setup>
-const useWebGL = ref(false)
-const webGLFailed = ref(false)
 
-const showFallback = computed(() => !useWebGL.value || webGLFailed.value)
-
-onMounted(() => {
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (reducedMotion) return
-
-  const probe = document.createElement('canvas')
-  const gl = probe.getContext('webgl2') || probe.getContext('webgl')
-  useWebGL.value = Boolean(gl)
-  gl?.getExtension('WEBGL_lose_context')?.loseContext()
-})
-</script>
 
 <style scoped>
 .tree-page {
