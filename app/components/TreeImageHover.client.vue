@@ -74,7 +74,7 @@ onMounted(() => {
 <template>
   <div
     ref="rootRef"
-    class="tree-stage"
+    class="tree-image-hover"
     @pointerenter="onPointerEnter"
     @pointermove="onPointerMove"
     @pointerleave="onPointerLeave"
@@ -88,7 +88,7 @@ onMounted(() => {
       :tone-mapping="NoToneMapping"
       power-preference="low-power"
       render-mode="on-demand"
-      class="tree-canvas"
+      class="tree-image-hover__canvas"
     >
       <TresPerspectiveCamera :position="[0, 0, 12]" :fov="20" />
       <TreeImagePlane
@@ -102,19 +102,19 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.tree-stage {
+.tree-image-hover {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
 
-.tree-canvas {
+.tree-image-hover__canvas {
   width: 100% !important;
   height: 100% !important;
 }
 
-.tree-canvas :deep(canvas) {
+.tree-image-hover__canvas :deep(canvas) {
   display: block;
   width: 100% !important;
   height: 100% !important;

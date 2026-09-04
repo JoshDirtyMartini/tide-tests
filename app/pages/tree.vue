@@ -1,10 +1,10 @@
 <template>
-  <div class="w-full h-screen relative overflow-hidden bg-black">
+  <div class="tree-page">
     <img
       v-if="showFallback"
       src="/tree.png"
       alt="tree"
-      class="w-full h-full object-cover"
+      class="tree-page__fallback"
     >
     <TreeImageHover
       v-else
@@ -32,3 +32,19 @@ onMounted(() => {
   gl?.getExtension('WEBGL_lose_context')?.loseContext()
 })
 </script>
+
+<style scoped>
+.tree-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+}
+
+.tree-page__fallback {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+</style>

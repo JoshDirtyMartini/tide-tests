@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="!ready"
-    class="fixed inset-0 z-50 bg-[#fcf4ee]"
+    class="bespoke bespoke--loading"
     aria-busy="true"
     aria-label="Loading experience"
   />
@@ -11,16 +11,16 @@
     :scene-text="sceneText"
   >
     <template #content>
-      <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]" />
-      <div class="w-[30vw] h-[70svh] bg-white ml-[10vw] mb-[30svh]" />
-      <div class="w-[30vw] h-[70svh] bg-white ml-[60vw] my-[30svh]" />
+      <div class="bespoke__panel bespoke__panel--right" />
+      <div class="bespoke__panel bespoke__panel--left" />
+      <div class="bespoke__panel bespoke__panel--right" />
     </template>
 
     <template #destination>
       <img
         :src="destinationImage"
         alt=""
-        class="w-full h-full object-cover"
+        class="bespoke__destination"
       >
     </template>
   </ArchPortal>
@@ -51,3 +51,34 @@ onMounted(async () => {
   ready.value = true
 })
 </script>
+
+<style scoped>
+.bespoke--loading {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #fcf4ee;
+}
+
+.bespoke__panel {
+  width: 30vw;
+  height: 70svh;
+  background: #fff;
+}
+
+.bespoke__panel--right {
+  margin-left: 60vw;
+  margin-block: 30svh;
+}
+
+.bespoke__panel--left {
+  margin-left: 10vw;
+  margin-bottom: 30svh;
+}
+
+.bespoke__destination {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+</style>

@@ -330,28 +330,71 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="rootRef"
-    class="absolute inset-0 overflow-hidden"
+    class="side-burn-scroll"
     :style="{ backgroundColor: showBehind ? '#000' : baseColor }"
   >
     <div
       v-if="$slots.default"
       ref="overlayRef"
-      class="absolute top-1/2 left-1/2 z-10 w-fit -translate-x-1/2 -translate-y-1/2 text-center text-white"
+      class="side-burn-scroll__overlay"
     >
       <slot />
     </div>
 
     <canvas
       ref="canvasRef"
-      class="absolute inset-0 block h-full w-full"
-      :class="{ 'opacity-0': !isReady, 'opacity-100': isReady }"
+      class="side-burn-scroll__canvas"
+      :class="{ 'side-burn-scroll__canvas--ready': isReady }"
     />
 
     <p
       v-if="loadError"
-      class="absolute inset-0 flex items-center justify-center text-sm text-white/70"
+      class="side-burn-scroll__error"
     >
       {{ loadError }}
     </p>
   </div>
 </template>
+
+<style scoped>
+.side-burn-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.side-burn-scroll__overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 10;
+  width: fit-content;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #fff;
+}
+
+.side-burn-scroll__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+
+.side-burn-scroll__canvas--ready {
+  opacity: 1;
+}
+
+.side-burn-scroll__error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.875rem;
+}
+</style>

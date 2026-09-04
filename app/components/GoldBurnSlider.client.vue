@@ -94,7 +94,7 @@ float fbm(vec2 p) {
   for (int i = 0; i < 2; i++) {
     v += a * valueNoise(p);
     p = p * 2.11 + vec2(17.2, 9.1);
-    a *= 0.5;c
+    a *= 0.5;
   }
   return v;
 }
@@ -425,31 +425,31 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="rootRef" class="absolute inset-0 overflow-hidden bg-black">
+  <div ref="rootRef" class="gold-burn">
     <img
       v-if="!isReady && !loadError"
       :src="images[0]"
       alt=""
-      class="absolute inset-0 w-full h-full object-cover"
+      class="gold-burn__fallback"
       draggable="false"
     >
 
     <canvas
       ref="canvasRef"
-      class="absolute inset-0 block w-full h-full"
-      :class="{ 'opacity-0': !isReady, 'opacity-100': isReady }"
+      class="gold-burn__canvas"
+      :class="{ 'gold-burn__canvas--ready': isReady }"
     />
 
     <p
       v-if="loadError"
-      class="absolute inset-0 flex items-center justify-center text-white/70 text-sm"
+      class="gold-burn__error"
     >
       {{ loadError }}
     </p>
 
-    <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-4 z-10">
+    <div class="gold-burn__controls">
       <button
-        class="px-4 py-2 rounded-full bg-white/30 hover:bg-white/60 focus:outline-none transition disabled:opacity-40"
+        class="gold-burn__btn"
         :disabled="isTransitioning || !isReady"
         aria-label="Previous image"
         @click="prevImage"
@@ -457,7 +457,7 @@ onBeforeUnmount(() => {
         &#8592;
       </button>
       <button
-        class="px-4 py-2 rounded-full bg-white/30 hover:bg-white/60 focus:outline-none transition disabled:opacity-40"
+        class="gold-burn__btn"
         :disabled="isTransitioning || !isReady"
         aria-label="Next image"
         @click="nextImage"
@@ -467,3 +467,76 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.gold-burn {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.gold-burn__fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gold-burn__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+
+.gold-burn__canvas--ready {
+  opacity: 1;
+}
+
+.gold-burn__error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.875rem;
+}
+
+.gold-burn__controls {
+  position: absolute;
+  bottom: 2.5rem;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  gap: 1rem;
+  transform: translateX(-50%);
+}
+
+.gold-burn__btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.3);
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.gold-burn__btn:hover {
+  background: rgb(255 255 255 / 0.6);
+}
+
+.gold-burn__btn:focus {
+  outline: none;
+}
+
+.gold-burn__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+</style>

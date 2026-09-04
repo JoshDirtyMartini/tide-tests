@@ -194,22 +194,22 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="page">
+  <div ref="root" class="arch-portal">
     <CloudParallax archway burn />
 
     <div
       ref="trackEl"
-      class="track"
+      class="arch-portal__track"
       :style="{ height: trackPx ? `${trackPx}px` : `${minTrack * 100}svh` }"
     >
-      <main ref="contentEl" class="content">
+      <main ref="contentEl" class="arch-portal__content">
         <slot name="content" />
       </main>
     </div>
 
     <section
       ref="nextSectionEl"
-      class="nextSection relative overflow-x-clip"
+      class="arch-portal__next"
       :style="{
         height: trackPx ? `${trackPx}px` : `${minTrack * 100}svh`,
         marginTop: trackPx ? `-${trackPx}px` : `-${minTrack * 100}svh`,
@@ -218,13 +218,12 @@ onBeforeUnmount(() => {
     >
       <div
         ref="imageEl"
-        class="nextSection--image sticky top-0 left-0 w-screen h-screen relative bg-black overflow-hidden"
+        class="arch-portal__image"
       >
-        <div ref="imageItemEl" class="nextSection--image-item relative w-full h-full">
+        <div ref="imageItemEl" class="arch-portal__image-item">
           <SideBurnScroll
             v-if="useBurn"
             ref="burnScrollRef"
-            class="absolute inset-0"
             :to="burnTo"
             :from="burnFrom"
             :behind="burnBehind"
@@ -243,34 +242,51 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.page {
+.arch-portal {
   position: relative;
   min-height: 100svh;
   background: #fcf4ee;
 }
 
-.track {
+.arch-portal__track {
   position: relative;
   z-index: 2;
 }
 
-.content {
+.arch-portal__content {
   position: relative;
 }
 
-.content :deep(.panel) {
+.arch-portal__content :deep(.arch-portal__panel) {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: 100svh;
 }
 
-.nextSection {
+.arch-portal__next {
   position: relative;
   width: 100%;
   z-index: 0;
   min-height: 100svh;
   margin-bottom: 100svh;
+  overflow-x: clip;
   background: #fcf4ee;
+}
+
+.arch-portal__image {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+}
+
+.arch-portal__image-item {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 </style>

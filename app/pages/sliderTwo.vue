@@ -1,5 +1,5 @@
 <template>
-  <div class="relative w-full h-svh overflow-hidden bg-black">
+  <div class="slider-page">
     <SideBurnSlider :images="images" />
   </div>
 </template>
@@ -11,3 +11,13 @@ const images = [
   'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80',
 ]
 </script>
+
+<style scoped>
+.slider-page {
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  overflow: hidden;
+  background: #000;
+}
+</style>

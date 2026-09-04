@@ -1,70 +1,82 @@
 <template>
-  <div class="page">
+  <div class="test-page">
     <CloudParallax />
 
-    <main class="content">
-      <section class="panel hero">
-        <div class="w-screen h-screen flex items-center pl-[60vw]">
-          <div class="w-[30vw] h-[60svh] bg-white"></div>
+    <main class="test-page__content">
+      <section class="test-page__panel test-page__panel--hero">
+        <div class="test-page__row test-page__row--right">
+          <div class="test-page__block" />
         </div>
-
-       
       </section>
 
-      <section class="panel">
-        <div class="w-screen h-screen flex items-center pl-[10vw]">
-          <div class="w-[30vw] h-[60svh] bg-white"></div>
+      <section class="test-page__panel">
+        <div class="test-page__row test-page__row--left">
+          <div class="test-page__block" />
         </div>
-        
       </section>
 
-      <section class="panel">
+      <section class="test-page__panel" />
 
-
-      </section>
-
-      <section class="panel">
-  <div class="w-screen h-screen flex items-center pl-[60vw]">
-          <div class="w-[30vw] h-[60svh] bg-white"></div>
+      <section class="test-page__panel">
+        <div class="test-page__row test-page__row--right">
+          <div class="test-page__block" />
         </div>
-      
       </section>
 
-      <section class="panel"></section>
-      <section class="panel"></section>
-      <section class="panel"></section>
-      <section class="panel"></section>
+      <section class="test-page__panel" />
+      <section class="test-page__panel" />
+      <section class="test-page__panel" />
+      <section class="test-page__panel" />
     </main>
   </div>
 </template>
 
 <style scoped>
-.page {
+.test-page {
   position: relative;
   min-height: 100svh;
   background: transparent;
 }
 
-.content {
+.test-page__content {
   position: relative;
   z-index: 1;
   pointer-events: none;
 }
 
-.panel {
+.test-page__panel {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: 100svh;
-
-
 }
 
-.hero {
+.test-page__panel--hero {
   max-width: 42rem;
 }
 
-.eyebrow {
+.test-page__row {
+  display: flex;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+.test-page__row--right {
+  padding-left: 60vw;
+}
+
+.test-page__row--left {
+  padding-left: 10vw;
+}
+
+.test-page__block {
+  width: 30vw;
+  height: 60svh;
+  background: #fff;
+}
+
+.test-page__eyebrow {
   margin: 0 0 0.75rem;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   font-size: 0.85rem;
@@ -73,8 +85,8 @@
   color: #6b5344;
 }
 
-h1,
-h2 {
+.test-page__title,
+.test-page__heading {
   margin: 0 0 1rem;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   font-weight: 500;
@@ -82,16 +94,16 @@ h2 {
   line-height: 1.05;
 }
 
-h1 {
+.test-page__title {
   font-size: clamp(2.6rem, 7vw, 4.8rem);
 }
 
-h2 {
+.test-page__heading {
   font-size: clamp(1.8rem, 4vw, 2.6rem);
 }
 
-.lede,
-.panel p {
+.test-page__lede,
+.test-page__panel p {
   margin: 0;
   font-family: "Avenir Next", "Segoe UI", sans-serif;
   font-size: clamp(1rem, 2.2vw, 1.15rem);

@@ -43,8 +43,8 @@ onMounted(() => {
     power-preference="low-power"
     render-mode="on-demand"
     window-size
-    class="cloud-canvas"
-    :class="{ 'cloud-canvas--suspended': suspended }"
+    class="cloud-parallax"
+    :class="{ 'cloud-parallax--suspended': suspended }"
   >
     <TresPerspectiveCamera :position="[0, 0, 12]" :fov="20" />
     <CloudField v-if="!archway" />
@@ -54,14 +54,14 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.cloud-canvas {
+.cloud-parallax {
   position: fixed !important;
   inset: 0;
   z-index: 1;
   pointer-events: none;
 }
 
-.cloud-canvas--suspended {
+.cloud-parallax--suspended {
   visibility: hidden;
 }
 </style>
