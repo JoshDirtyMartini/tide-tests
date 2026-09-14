@@ -16,10 +16,10 @@ import {
 } from 'three'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { getCachedGltf, preloadGltf } from '~/utils/bespokeAssetCache'
 
 const CLOUD_OPACITY = 0.2
 const HOVER_OPACITY = 0.5
+const CULL_Y = 7
 
 const OCCLUDER_COLOR = 0xfcf4ee
 const OCCLUDER_OUTER = 45
@@ -314,30 +314,19 @@ const instances = shallowRef([])
 const archOccluder = shallowRef(null)
 const textInstance = shallowRef(null)
 const sceneTextConfig = useArchSceneText()
-const { suspended, reducedEffects, ready: sceneReady } = useArchSceneControl()
 const waterFollow = { x: 10, y: 10 }
 let lastWaterX = 10
 let lastWaterY = 10
 let disposed = false
 
-const { pointer, cameraZ, getWorldPosition, smooth } = useArchwayMotion()
+const { pointer, cameraZ, getWorldPosition } = useArchwayMotion()
 const { invalidate, camera } = useTres()
 const { onBeforeRender } = useLoop()
 
 function requestFrame(frames = 1) {
-  if (disposed || suspended.value || (typeof document !== 'undefined' && document.hidden)) return
+  if (disposed || (typeof document !== 'undefined' && document.hidden)) return
   invalidate(frames)
 }
-
-watch(
-  () => [smooth.scroll, smooth.x, smooth.y],
-  () => requestFrame(2),
-  { immediate: true },
-)
-
-watch(suspended, (value) => {
-  if (!value) requestFrame(4)
-})
 
 function disposeTextMesh(mesh) {
   mesh.geometry?.dispose?.()
@@ -513,7 +502,7 @@ async function loadSceneModels() {
   const srcs = [...new Set(SCENE_MODELS.map((model) => model.src))]
   try {
     const entries = await Promise.all(
-      srcs.map(async (src) => [src, await (getCachedGltf(src) ?? preloadGltf(src))]),
+      srcs.map(async (src) => [src, await gltfLoader.loadAsync(src)]),
     )
     if (disposed) return
     gltfsBySrc.value = Object.fromEntries(entries)
@@ -526,17 +515,6 @@ async function loadSceneModels() {
 function applyCloudMaterial(sourceMat, opacity, hoverOpacity, depthWrite) {
   const map = sourceMat.map ? toRaw(sourceMat.map) : null
   if (map) map.colorSpace = SRGBColorSpace
-
-  if (reducedEffects.value) {
-    return new MeshBasicMaterial({
-      map,
-      side: DoubleSide,
-      transparent: true,
-      opacity,
-      depthWrite,
-      toneMapped: false,
-    })
-  }
 
   const next = new MeshBasicMaterial({
     map,
@@ -661,8 +639,7 @@ function rebuildInstances() {
     spawnInstances(loaded[model.src], model.instances, model.baseRotation),
   )
   archOccluder.value = createArchOccluder()
-  sceneReady.value = true
-  nextTick(() => requestFrame(8))
+  nextTick(() => requestFrame(4))
 }
 
 loadSceneModels()
@@ -686,7 +663,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   disposed = true
-  sceneReady.value = false
   unregisterArchwayRenderSync()
   removeVisibility?.()
   clearInstances()
@@ -701,30 +677,28 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRender(({ delta, renderer }) => {
-  if (disposed || suspended.value || (typeof document !== 'undefined' && document.hidden)) return
+  if (disposed || (typeof document !== 'undefined' && document.hidden)) return
 
-  if (!reducedEffects.value) {
-    waterFollow.x += (pointer.x - waterFollow.x) * 0.22
-    waterFollow.y += (pointer.y - waterFollow.y) * 0.22
+  waterFollow.x += (pointer.x - waterFollow.x) * 0.22
+  waterFollow.y += (pointer.y - waterFollow.y) * 0.22
 
-    const invDelta = 1 / Math.max(delta, 0.001)
-    const vx = (waterFollow.x - lastWaterX) * invDelta
-    const vy = (waterFollow.y - lastWaterY) * invDelta
-    waterVelocity.value.x += (vx - waterVelocity.value.x) * 0.18
-    waterVelocity.value.y += (vy - waterVelocity.value.y) * 0.18
-    lastWaterX = waterFollow.x
-    lastWaterY = waterFollow.y
+  const invDelta = 1 / Math.max(delta, 0.001)
+  const vx = (waterFollow.x - lastWaterX) * invDelta
+  const vy = (waterFollow.y - lastWaterY) * invDelta
+  waterVelocity.value.x += (vx - waterVelocity.value.x) * 0.18
+  waterVelocity.value.y += (vy - waterVelocity.value.y) * 0.18
+  lastWaterX = waterFollow.x
+  lastWaterY = waterFollow.y
 
-    const speed = Math.hypot(waterVelocity.value.x, waterVelocity.value.y)
-    const target = Math.min(1, Math.max(0, (speed - 0.1) / 0.55))
-    const blend = target > waterMotion.value
-      ? 1 - Math.exp(-delta / 0.08)
-      : 1 - Math.exp(-delta / 0.85)
-    waterMotion.value += (target - waterMotion.value) * blend
+  const speed = Math.hypot(waterVelocity.value.x, waterVelocity.value.y)
+  const target = Math.min(1, Math.max(0, (speed - 0.1) / 0.55))
+  const blend = target > waterMotion.value
+    ? 1 - Math.exp(-delta / 0.08)
+    : 1 - Math.exp(-delta / 0.85)
+  waterMotion.value += (target - waterMotion.value) * blend
 
-    waterMouse.value.set(waterFollow.x, waterFollow.y)
-    waterResolution.value.set(renderer.domElement.width, renderer.domElement.height)
-  }
+  waterMouse.value.set(waterFollow.x, waterFollow.y)
+  waterResolution.value.set(renderer.domElement.width, renderer.domElement.height)
 
   const cam = camera.value
   if (cam) {
@@ -746,7 +720,10 @@ onBeforeRender(({ delta, renderer }) => {
     object.rotation.z = MathUtils.degToRad(baseRotation.z) + (config.rotZ ?? 0)
 
     if (config.portal) {
+      object.visible = true
       portalArch = object
+    } else {
+      object.visible = Math.abs(world.y) < CULL_Y + 3
     }
   }
 
@@ -757,6 +734,7 @@ onBeforeRender(({ delta, renderer }) => {
     textInst.object.position.x = world.x
     textInst.object.position.y = world.y
     textInst.object.position.z = world.z
+    textInst.object.visible = Math.abs(world.y) < CULL_Y + 3
   }
 
   const occluder = archOccluder.value

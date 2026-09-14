@@ -224,20 +224,7 @@ onBeforeUnmount(() => {
         class="arch-portal__image"
       >
         <div ref="imageItemEl" class="arch-portal__image-item">
-          <SideBurnScroll
-            v-if="useBurn"
-            ref="burnScrollRef"
-            :to="burnTo"
-            :from="burnFrom"
-            :behind="burnBehind"
-            :sketch-speed="sketchSpeed"
-            :sketch-lead="sketchLead"
-            :behind-opacity="behindOpacity"
-            :sketch-opacity="sketchOpacity"
-          >
-            <slot name="burn-overlay" />
-          </SideBurnScroll>
-          <slot v-else name="destination" />
+          <slot name="destination" />
         </div>
       </div>
     </section>

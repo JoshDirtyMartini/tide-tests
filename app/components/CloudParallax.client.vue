@@ -47,9 +47,9 @@ onMounted(() => {
     :class="{ 'cloud-parallax--suspended': suspended }"
   >
     <TresPerspectiveCamera :position="[0, 0, 12]" :fov="20" />
-    <CloudField v-if="!archway" />
-    <CloudFieldArchwayBurn v-else-if="archway && burn" />
-    <CloudFieldArchway v-else />
+
+    <CloudFieldArchway />
+
   </TresCanvas>
 </template>
 
