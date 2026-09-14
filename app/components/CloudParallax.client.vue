@@ -1,17 +1,6 @@
 <script setup>
 import { NoToneMapping } from 'three'
 
-defineProps({
-  archway: {
-    type: Boolean,
-    default: false,
-  },
-  burn: {
-    type: Boolean,
-    default: false,
-  },
-})
-
 const { suspended, reducedEffects } = useArchSceneControl()
 
 const enabled = ref(false)
@@ -49,7 +38,6 @@ onMounted(() => {
     <TresPerspectiveCamera :position="[0, 0, 12]" :fov="20" />
 
     <CloudFieldArchway />
-
   </TresCanvas>
 </template>
 

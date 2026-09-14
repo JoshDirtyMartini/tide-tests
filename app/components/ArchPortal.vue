@@ -33,40 +33,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
-  burnTo: {
-    type: String,
-    default: '',
-  },
-  burnBehind: {
-    type: String,
-    default: '',
-  },
-  burnFrom: {
-    type: String,
-    default: '',
-  },
-  sketchSpeed: {
-    type: Number,
-    default: 1.1,
-  },
-  sketchLead: {
-    type: Number,
-    default: 0.05,
-  },
-  behindOpacity: {
-    type: Number,
-    default: 0.5,
-  },
-  sketchOpacity: {
-    type: Number,
-    default: 0.6,
-  },
 })
 
-const useBurn = computed(() => Boolean(props.burnTo))
-
 provideArchSceneText(toRef(() => props.sceneText))
-const { suspended: sceneSuspended } = provideArchSceneControl()
+provideArchSceneControl()
 
 const root = ref(null)
 const trackEl = ref(null)
@@ -74,7 +44,6 @@ const contentEl = ref(null)
 const imageEl = ref(null)
 const imageItemEl = ref(null)
 const nextSectionEl = ref(null)
-const burnScrollRef = ref(null)
 const trackPx = ref(0)
 
 let ctx
@@ -96,7 +65,6 @@ async function setupMotion() {
   const track = trackEl.value
   const image = imageEl.value
   const item = imageItemEl.value
-  const nextSection = nextSectionEl.value
   if (!track || !image || !item) return
 
   ctx = gsap.context(() => {
@@ -128,30 +96,12 @@ async function setupMotion() {
       props.motionStart,
     )
 
-    if (useBurn.value && nextSection) {
-      ScrollTrigger.create({
-        trigger: nextSection,
-        start: '60% top',
-        end: 'bottom top',
-        scrub: true,
-        invalidateOnRefresh: true,
-        onUpdate: (self) => {
-          burnScrollRef.value?.setProgress(self.progress)
-          sceneSuspended.value = self.progress > 0.4
-        },
-        onRefresh: (self) => {
-          burnScrollRef.value?.setProgress(self.progress)
-          sceneSuspended.value = self.progress > 0.4
-        },
-      })
-    } else if (!useBurn.value) {
-      tl.fromTo(
-        item,
-        { opacity: 0.5 },
-        { opacity: 1, ease: 'none', duration: props.imageScaleDuration },
-        props.motionStart,
-      )
-    }
+    tl.fromTo(
+      item,
+      { opacity: 0.5 },
+      { opacity: 1, ease: 'none', duration: props.imageScaleDuration },
+      props.motionStart,
+    )
   }, root.value)
 
   ScrollTrigger.refresh()
@@ -161,16 +111,6 @@ onMounted(async () => {
   await nextTick()
   setArchwayScrollTrigger(root.value)
   await setupMotion()
-
-  watch(
-    () => burnScrollRef.value?.isReady,
-    (ready) => {
-      if (ready) {
-        ScrollTrigger.refresh()
-      }
-    },
-    { immediate: true },
-  )
 
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => {
@@ -198,7 +138,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="arch-portal">
-    <CloudParallax archway burn />
+    <CloudParallax />
 
     <div
       ref="trackEl"
